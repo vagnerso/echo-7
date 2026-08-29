@@ -55,8 +55,8 @@ A estrutura completa está detalhada em [`docs/DECISIONS.md`](docs/DECISIONS.md)
 ## 🗺️ Roadmap
 
 - [x] Fase 0 — Planejamento (GDD, arquitetura, decisões técnicas)
-- [ ] Fase 1 — Bootstrap *(em andamento)*
-- [ ] Fase 2 — Robot (ECHO-7, movimento, câmera, colisão)
+- [x] Fase 1 — Bootstrap (setup, canvas responsivo, game loop, tela inicial)
+- [ ] Fase 2 — Robot (ECHO-7, movimento, câmera, colisão) *(em andamento)*
 - [ ] Fase 3 — World (mapa, tiles, interação)
 - [ ] Fase 4 — Scanner
 - [ ] Fase 5 — Inventory

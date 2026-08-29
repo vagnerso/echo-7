@@ -112,6 +112,76 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Motivo:** o projeto será publicado no GitHub com intenção de ser apresentável profissionalmente (seção 26 do prompt mestre); Conventional Commits é um padrão amplamente reconhecido, gera histórico legível e facilita futuramente gerar um changelog automatizado, se quisermos.
 
+### Verificação visual com Playwright avulso (não é dependência do projeto)
+
+**Contexto:** mudanças visuais (canvas, HUD, telas) precisam ser conferidas rodando de fato no navegador, não só validadas por build/lint/teste.
+
+**Decisão:** usar `npx playwright` pontualmente para abrir a aplicação num Chromium headless, tirar screenshots em tamanhos de viewport diferentes e checar o console por erros — sem adicionar Playwright como dependência do `package.json`.
+
+**Motivo:** é uma ferramenta de verificação do processo de desenvolvimento (equivalente a "eu olhei no navegador"), não algo que o projeto em si precisa para rodar ou para os testes automatizados. Adicionar como dependência permanente seria escopo desnecessário no `package.json` para algo usado sob demanda.
+
+## Fase 1.3 — Game loop
+
+### Separação update/render com timestep fixo e alpha de interpolação
+
+**Contexto:** o game loop podia simplesmente rodar toda a lógica dentro do callback do `requestAnimationFrame`.
+
+**Decisão:** separar em dois callbacks — `update(dt)`, chamado zero ou mais vezes por frame em incrementos de tempo sempre iguais (o "passo fixo"), e `render(alpha)`, chamado uma vez por frame, recebendo a fração (0-1) do próximo passo já decorrida.
+
+**Motivo:** se a simulação rodasse direto atrelada ao rAF, o resultado dependeria da taxa de atualização da tela do jogador (60Hz, 144Hz, um notebook que cai para 30Hz sob carga...) — o jogo ficaria mais rápido ou mais lento dependendo do hardware. Com passo fixo, a simulação sempre avança em incrementos do mesmo tamanho. O `alpha` existe para não perder suavidade visual: quando o `render` acontece entre dois passos fixos, ele interpola a posição entre o estado anterior e o atual em vez de "pular" para a posição do último passo. É um padrão clássico de game loop (fixed timestep with interpolation), não uma invenção deste projeto.
+
+### Dependências do `GameLoop` injetáveis (`now`, `requestFrame`, `cancelFrame`)
+
+**Contexto:** o roadmap pedia explicitamente um game loop "testável sem browser".
+
+**Decisão:** `GameLoop` recebe `now`, `requestFrame` e `cancelFrame` como opções, com `performance.now`/`requestAnimationFrame`/`cancelAnimationFrame` reais como padrão.
+
+**Motivo:** nos testes, essas três dependências são substituídas por versões falsas controladas manualmente pelo teste (um "scheduler" que só dispara o próximo frame quando o teste mandar, com o tempo que o teste escolher) — isso permite testar determinística e instantaneamente comportamento que dependeria de tempo real e do navegador. A matemática do timestep em si (`advanceAccumulator`) nem precisa dessa injeção: é uma função pura, sem estado, testável diretamente.
+
+### `erasableSyntaxOnly` proíbe "parameter properties" do TypeScript
+
+**Contexto:** o atalho `constructor(private readonly callbacks: X)` (que declara e atribui o campo da classe automaticamente) quebrou o build com `error TS1294: This syntax is not allowed when 'erasableSyntaxOnly' is enabled`.
+
+**Decisão:** declarar o campo explicitamente na classe e atribuir no corpo do construtor, em vez de usar o atalho.
+
+**Motivo:** o build usa esbuild (via Vite) para transpilar TypeScript, que só *apaga* tipos — não entende açúcares sintáticos do TS que precisam gerar código extra em tempo de execução, como parameter properties ou enums com valor. `erasableSyntaxOnly` (que já tínhamos ativado, dentro do bloco de linting do tsconfig gerado pelo scaffold) existe para pegar esse tipo de incompatibilidade em tempo de type-check, antes de chegar no build.
+
+### Não mutar refs do React durante o render
+
+**Contexto:** o oxlint acusou `callbacksRef.current = callbacks` (atribuído direto no corpo da função do hook, fora de qualquer efeito) com o aviso `react(refs): Cannot access refs during render`.
+
+**Decisão:** mover essa atribuição para dentro de um `useEffect` sem array de dependências (roda depois de todo render).
+
+**Motivo:** o React pode chamar a função de um componente mais de uma vez para um único render "confirmado" (Strict Mode, renders interrompidos em modo concorrente). Mutar uma ref direto no corpo da função soma esse risco de inconsistência. Fazer a mutação dentro de um efeito garante que ela só acontece depois que o render foi de fato confirmado.
+
+## Fase 1.4 — Tela inicial
+
+### CONTINUE e SETTINGS desabilitados, não escondidos nem falsos
+
+**Contexto:** o mockup do prompt mestre (seção 22) mostra os três botões (NEW GAME, CONTINUE, SETTINGS), mas ainda não existe save system nem tela de configurações implementados.
+
+**Decisão:** renderizar os três botões, mas `CONTINUE` (quando não há save) e `SETTINGS` ficam com `disabled` e um `title` explicando o motivo.
+
+**Alternativas consideradas:** esconder os botões que ainda não funcionam; deixá-los clicáveis sem fazer nada.
+
+**Motivo:** esconder muda o layout do mockup aprovado sem necessidade — o botão devia aparecer, só não fazer nada ainda. Deixar clicável sem ação é pior: engana o jogador, que clica e não entende por que nada acontece. Desabilitado com motivo explícito no `title` é a opção honesta, e o código já fica pronto para reativar (`hasSave` já é uma prop, será alimentada pelo save system real na Fase 8).
+
+### Transição menu/jogo em `useState`, não no `uiStore` do Zustand
+
+**Contexto:** a arquitetura da Fase 0 já previa um `uiStore` no Zustand cobrindo "menu aberto" como um dos exemplos de estado de UI.
+
+**Decisão:** por enquanto, qual tela mostrar (`menu` ou `game`) fica em `useState` dentro do `App.tsx`, não no Zustand.
+
+**Motivo:** Zustand resolve o problema de compartilhar estado entre componentes que não têm relação direta de pai/filho. Hoje só o `App.tsx` decide o que renderizar — não há esse problema ainda. Introduzir uma store global para um estado usado por um único componente seria complexidade sem benefício (seção 19 do prompt mestre: preferir a solução simples). Assim que um segundo componente (por exemplo o HUD, mais adiante) precisar saber em que tela o jogo está, esse estado deve subir para o `uiStore`.
+
+### Verificação de componentes de UI simples via navegador, não teste unitário com jsdom
+
+**Contexto:** a decisão de ambiente de teste `node` (Fase 1.1) previa adicionar `jsdom` "quando chegarmos a testar componentes React". O `MainMenu` é o primeiro componente de UI de verdade do projeto.
+
+**Decisão:** por ora, verificar componentes puramente apresentacionais (sem lógica condicional complexa) rodando a aplicação de verdade num Chromium headless (mesma abordagem já usada nas Fases 1.2/1.3), em vez de adicionar `jsdom` + React Testing Library agora.
+
+**Motivo:** o prompt mestre (seção 20) prioriza testes unitários para lógica de jogo (movimento, colisão, energia, inventário, upgrades, puzzles, save/load, progressão) — não para telas de UI. O `MainMenu` de hoje não tem lógica condicional complexa o bastante para justificar a infraestrutura de teste de componente (que exigiria duas dependências novas). Quando algum componente de UI acumular lógica condicional que valha a pena cobrir exaustivamente com testes (não só visualmente), essa é a hora de adicionar `jsdom` + Testing Library.
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).
