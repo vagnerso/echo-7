@@ -182,6 +182,62 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Motivo:** o prompt mestre (seção 20) prioriza testes unitários para lógica de jogo (movimento, colisão, energia, inventário, upgrades, puzzles, save/load, progressão) — não para telas de UI. O `MainMenu` de hoje não tem lógica condicional complexa o bastante para justificar a infraestrutura de teste de componente (que exigiria duas dependências novas). Quando algum componente de UI acumular lógica condicional que valha a pena cobrir exaustivamente com testes (não só visualmente), essa é a hora de adicionar `jsdom` + Testing Library.
 
+## Fase 2 — Robot
+
+### Ações de jogo em vez de teclas cruas no `InputManager`
+
+**Decisão:** o `InputManager` expõe `isActionPressed('moveUp' | 'moveDown' | ...)`, não `isKeyPressed('KeyW')`. Um mapa interno (`ACTION_TO_KEYS`) faz a tradução.
+
+**Motivo:** o sistema de movimento não deveria precisar saber que "W" existe. Isso também deixa pronto o remapeamento de teclas (se um dia for pedido) sem tocar em nenhum outro sistema.
+
+### `event.code`, não `event.key`
+
+**Decisão:** o mapeamento de teclas usa `event.code` (posição física da tecla).
+
+**Motivo:** `code` identifica a tecla pela posição no teclado, independente do layout — em AZERTY, a tecla na posição de W tem `code: 'KeyW'` mas `key: 'z'`. Para WASD, `code` é o padrão correto; usar `key` quebraria o jogo para jogadores fora do QWERTY.
+
+### `InputManager` rastreia teclas cruas, não ações, internamente
+
+**Contexto:** duas teclas diferentes (`KeyW` e `ArrowUp`) mapeiam para a mesma ação (`moveUp`).
+
+**Decisão:** o `Set` interno guarda os `code` das teclas pressionadas; `isActionPressed` deriva a resposta verificando se **alguma** das teclas daquela ação está no set.
+
+**Motivo:** se o estado guardado fosse a ação diretamente (`pressedActions.add('moveUp')` / `.delete(...)`), soltar uma das duas teclas apagaria a ação mesmo que a outra ainda estivesse pressionada — um bug real e fácil de não perceber em teste manual rápido (a maioria dos testers usa só uma tecla por vez). Guardando as teclas cruas, isso não acontece.
+
+### Player não ganha `integrity`/`energy`/`scannerLevel` ainda
+
+**Decisão:** o `Player` desta fase só tem `position`, `velocity`, `facing` e `size` — não o modelo de dados completo já esboçado na Fase 0.
+
+**Motivo:** nenhum sistema usa esses outros campos ainda (energia, scanner e integridade chegam em fases futuras). Declarar campos sem lógica por trás é exatamente o tipo de coisa que a seção 19 do prompt mestre pede pra evitar. Entram quando os sistemas correspondentes existirem.
+
+### Normalização de movimento diagonal
+
+**Decisão:** ao mover em dois eixos ao mesmo tempo, o vetor de direção é normalizado antes de multiplicar pela velocidade.
+
+**Motivo:** sem isso, mover na diagonal resultaria em velocidade ~41% maior (raiz de 2) do que mover num eixo só — um erro clássico de jogos 2D, fácil de implementar errado e só perceber quando alguém nota que anda mais rápido na diagonal.
+
+### `updatePlayerMovement` muta o `Player` em vez de retornar um novo objeto
+
+**Motivo:** consistente com a decisão de que o estado "quente" da engine é mutável comum (Fase 0) — evita criar objetos novos a cada um dos ~60 passos por segundo, o que geraria lixo de memória (garbage collection) desnecessário num loop contínuo.
+
+### Câmera sem suavização, mais grade de depuração temporária
+
+**Decisão:** a câmera centraliza exatamente na posição interpolada do jogador a cada frame, sem lag. Para provar visualmente que a transformação mundo→tela funciona antes de existir mapa de verdade, uma grade de referência é desenhada em coordenadas de mundo e passada pela mesma transformação da câmera.
+
+**Motivo:** suavização de câmera é polimento (Fase 9), não uma mecânica que afeta o jogo — adicionar agora seria complexidade sem necessidade imediata. A grade existe só porque, sem ela, o jogador aparece sempre no centro da tela e não dá pra distinguir visualmente "câmera funcionando" de "nada sendo transformado". Some quando o mapa real (Fase 3) existir.
+
+### Colisão resolve os eixos X e Y separadamente
+
+**Decisão:** `resolveCollisions` testa o eixo X isoladamente (mantendo Y anterior) e depois o eixo Y (já com X resolvido), em vez de rejeitar o movimento inteiro ao detectar qualquer colisão.
+
+**Motivo:** produz o comportamento de "deslizar" ao longo de uma parede quando o movimento é diagonal, sem precisar de física de verdade. Testado explicitamente (mover na diagonal contra uma parede vertical desliza no eixo livre; um canto que bloqueia os dois eixos trava o jogador por completo).
+
+### Obstáculos de depuração temporários no `GameCanvas`
+
+**Decisão:** um array fixo (`DEBUG_OBSTACLES`) com um retângulo é desenhado e usado para colisão, antes de existir mundo/mapa real.
+
+**Motivo:** mesma lógica da grade de depuração — sem algo para colidir, não dá pra verificar visualmente que a colisão funciona. Será substituído pelos obstáculos reais de cada região na Fase 3.
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).
