@@ -1,0 +1,21 @@
+/* Reset global minimo. Estilos de componente ficam em arquivos .module.css. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  background: #0b0d12;
+  color: #d8dbe2;
+  color-scheme: dark;
+}
