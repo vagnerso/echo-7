@@ -489,6 +489,7 @@ function renderInteractables(
   activated: ReadonlyMap<string, boolean>,
   nearestId: string | null,
   getPuzzleProgress: (puzzleId: string) => readonly string[],
+  solvedPuzzles: ReadonlySet<string>,
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
@@ -502,6 +503,15 @@ function renderInteractables(
       canvasWidth,
       canvasHeight,
     );
+
+    // Objeto que exige um puzzle ainda nao resolvido nao responde a
+    // interacao (ver systems/interactionSystem.ts) - sem isso ele renderiza
+    // identico a um igual ja liberado, e o jogador nao tem nenhuma pista de
+    // por que a tecla E "nao faz nada" nele.
+    const isLocked =
+      object.requiresPuzzleSolved !== undefined &&
+      !solvedPuzzles.has(object.requiresPuzzleSolved);
+    ctx.globalAlpha = isLocked ? 0.35 : 1;
 
     if (object.id === nearestId) {
       ctx.strokeStyle = HIGHLIGHT_COLOR;
@@ -554,6 +564,9 @@ function renderInteractables(
     ctx.arc(screenPosition.x, screenPosition.y, 10, 0, Math.PI * 2);
     ctx.fill();
   }
+  // Restaura para nao vazar opacidade reduzida para o que for desenhado
+  // depois (scannables, particulas, o proprio robo).
+  ctx.globalAlpha = 1;
 }
 
 function renderScannables(
@@ -1067,6 +1080,7 @@ export function GameCanvas() {
         activatedInteractablesRef.current,
         nearestInteractableRef.current?.id ?? null,
         (puzzleId) => puzzleProgressRef.current.get(puzzleId) ?? [],
+        useGameStore.getState().solvedPuzzles,
         camera,
         canvas.width,
         canvas.height,

@@ -808,3 +808,28 @@ Pedido do desenvolvedor: uma 4ª região jogável. Decidido no plano da v2.0 e c
 
 **Verificação:** fluxo completo testado de ponta a ponta via injeção de save (Deep Scanner instalado) + navegação real no dev server - escanear a entrada, entrar, resolver o puzzle na ordem certa, coletar os dois fragmentos, conferir a contagem no inventário (atualiza para "/8" automaticamente, sem nenhuma mudança de código além do conteúdo) e sair de volta à Landing Zone. Confirmado por leitura do estado salvo (`localStorage`), não só pela tela - o objetivo da missão (`currentObjective`) permaneceu `exploreLandingZone` durante todo o percurso, confirmando que a área realmente não interfere na progressão principal.
 
+### Correções pós-revisão do desenvolvedor (Fase C)
+
+Dois problemas reportados depois de jogar a Fase C de verdade.
+
+#### Fragmentos "travados" (antes do puzzle resolvido) pareciam quebrados, não bloqueados
+
+**Causa raiz:** `renderInteractables` (`GameCanvas.tsx`) só verificava `object.interactable` para decidir o que desenhar - nunca `requiresPuzzleSolved`. Um objeto gateado por um puzzle ainda não resolvido renderizava **idêntico** a um já liberado (mesma cor, mesmo formato, sem nenhuma pista visual), mas não respondia à tecla E porque `findNearestInteractable` (corretamente) o excluía. Resultado: o jogador via um triângulo de fragmento, andava até ele, apertava E, e "nada acontecia" - sem nenhuma explicação na tela.
+
+**Por que só apareceu agora:** é a primeira vez que um objeto do tipo `memoryFragment` (ou qualquer tipo renderizado nesta função) usa `requiresPuzzleSolved` - o único precedente (`signal-core`) tem o mesmo problema em teoria, mas na prática o jogador resolve o puzzle bem ao lado dele antes de tentar interagir, o que mascarava o bug.
+
+**Decisão:** `renderInteractables` ganhou um parâmetro `solvedPuzzles` e passou a desenhar qualquer objeto com `requiresPuzzleSolved` não satisfeito a **35% de opacidade** (`ctx.globalAlpha`), independente do seu tipo (fragmento, switch, círculo genérico) - reaproveitando o mesmo `solvedPuzzles` que `findNearestInteractable` já usa, então as duas funções nunca podem discordar sobre o que está bloqueado.
+
+**Motivo:** corrigido na função de renderização genérica, não com um caso especial para `memoryFragment` - o mesmo problema existia (silenciosamente) para `signal-core` e vale para qualquer objeto futuro com essa combinação de flags. Opacidade reduzida (em vez de esconder o objeto por completo) foi escolhida porque o jogador já pode ver o objeto fisicamente na sala (não há parede escondendo-o, diferente do antigo tile `sealed`) - esconder completamente seria inconsistente com o que os olhos do jogador já mostram.
+
+**Verificação:** não só visual - o teste amostrou o pixel do canvas no centro do triângulo antes e depois de resolver o puzzle (`ctx.getImageData`) e confirmou opacidade efetiva de ~0,30 travado contra ~0,85 destravado (a cor-base do fragmento já tem alpha 0,85; 0,85 × 0,35 ≈ 0,30), batendo com o valor esperado.
+
+#### Botões de cor do robô em Settings ficavam com fundo transparente
+
+**Causa raiz:** mesma categoria do bug do hover/`[data-active]` já corrigido na Fase A - `.swatchButton { background: var(--swatch-color) }` e a regra compartilhada `.button { background: rgba(11, 13, 18, 0.4) }` têm a **mesma especificidade** (uma classe cada). O desempate depende de qual regra aparece por último no CSS final, e essa ordem mudou ao longo da v2.0 conforme mais componentes passaram a usar `composes: button from hudPanel.module.css` (cada um reinjeta o texto da regra compartilhada na posição do seu próprio arquivo) - em algum ponto, uma dessas reinjeções passou a cair depois de `.swatchButton` no bundle, apagando a cor de fundo de volta para o cinza-escuro padrão.
+
+**Decisão:** `.swatchButton.swatchButton { background: var(--swatch-color) }` - seletor duplicado de propósito, não erro de digitação. Repetir a mesma classe soma especificidade (de 0,1,0 para 0,2,0), o que garante vencer a regra compartilhada **sempre**, não só na ordem de bundling atual.
+
+**Motivo:** mesmo padrão de correção já usado no bug do hover (resolver por especificidade, não torcer para a ordem do bundler ficar favorável) - a raiz é a mesma classe de problema (duas regras de mesma especificidade competindo por uma propriedade, vindas de arquivos `composes` diferentes), então a mesma categoria de fix se aplica. Vale ter em mente para qualquer botão futuro que precise sobrescrever uma propriedade que a classe `.button` compartilhada já define.
+
+**Lição geral desta fase:** os três problemas encontrados via revisão manual (2 aqui + o `requiresDeepScanner`/interação da seção anterior) reforçam algo já registrado antes: combinações de flags/composição **nunca antes exercitadas** - mesmo reaproveitando sistemas "já testados" - podem esconder lacunas que só aparecem quando um caso de uso novo as força a interagir de um jeito novo.

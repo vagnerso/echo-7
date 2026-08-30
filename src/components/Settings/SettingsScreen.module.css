@@ -52,8 +52,20 @@
   width: 2.5rem;
   height: 2.5rem;
   padding: 0;
-  background: var(--swatch-color);
   border-color: rgba(216, 219, 226, 0.3);
+}
+
+/*
+ * Seletor duplicado (nao e erro de digitacao) - so aumenta a especificidade
+ * de (0,1,0) para (0,2,0). Sem isso, `background` empata em especificidade
+ * com a regra `.button` compartilhada (tambem 0,1,0); o desempate vai para
+ * quem aparece por ultimo no CSS final, e essa ordem muda conforme mais
+ * componentes passam a compor `button` - ja aconteceu (ver DECISIONS.md,
+ * bug do hover/[data-active]). Especificidade maior resolve de vez, sem
+ * depender da ordem de bundling do Vite.
+ */
+.swatchButton.swatchButton {
+  background: var(--swatch-color);
 }
 
 .swatchButton[data-active] {
