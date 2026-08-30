@@ -8,6 +8,7 @@ describe('uiStore', () => {
       isScannerActive: false,
       currentScanTarget: null,
       isInventoryOpen: false,
+      activeFragmentReveal: null,
     });
   });
 
@@ -40,5 +41,40 @@ describe('uiStore', () => {
 
     useUiStore.getState().toggleInventory();
     expect(useUiStore.getState().isInventoryOpen).toBe(false);
+  });
+
+  it('setActiveFragmentReveal atualiza o fragmento em exibicao', () => {
+    const fragment = {
+      id: 'fragment-01',
+      regionId: 'region-1',
+      corruption: 50,
+      text: 'test',
+    };
+
+    useUiStore.getState().setActiveFragmentReveal(fragment);
+    expect(useUiStore.getState().activeFragmentReveal).toEqual(fragment);
+
+    useUiStore.getState().setActiveFragmentReveal(null);
+    expect(useUiStore.getState().activeFragmentReveal).toBeNull();
+  });
+
+  it('resetUi restaura o estado inicial de UI', () => {
+    useUiStore.getState().toggleScanner();
+    useUiStore.getState().toggleInventory();
+    useUiStore.getState().setActiveFragmentReveal({
+      id: 'fragment-01',
+      regionId: 'region-1',
+      corruption: 50,
+      text: 'test',
+    });
+
+    useUiStore.getState().resetUi();
+
+    expect(useUiStore.getState()).toMatchObject({
+      isScannerActive: false,
+      currentScanTarget: null,
+      isInventoryOpen: false,
+      activeFragmentReveal: null,
+    });
   });
 });

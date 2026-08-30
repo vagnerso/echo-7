@@ -4,6 +4,13 @@ const TILE_SIZE = 64;
 const COLS = 20;
 const ROWS = 15;
 
+const RUINS_TILE_SIZE = 64;
+
+// Declarado aqui (nao junto com SIGNAL_COLS/SIGNAL_ROWS, mais abaixo) porque
+// a saida da Ancient Ruins para o Signal Core precisa dele antes da regiao
+// Signal Core em si ser definida.
+const SIGNAL_TILE_SIZE = 64;
+
 function buildLandingZoneTiles(): TileType[][] {
   const tiles: TileType[][] = [];
 
@@ -136,10 +143,21 @@ export const LANDING_ZONE: Region = {
         spawnPosition: { x: 2 * TILE_SIZE, y: 7 * TILE_SIZE },
       },
     },
+    {
+      id: 'fragment-pickup-01',
+      interactable: true,
+      position: { x: 2 * TILE_SIZE, y: 2 * TILE_SIZE },
+      memoryFragment: 'fragment-01',
+    },
+    {
+      id: 'fragment-pickup-02',
+      interactable: true,
+      position: { x: 15 * TILE_SIZE, y: 5 * TILE_SIZE },
+      memoryFragment: 'fragment-02',
+    },
   ],
 };
 
-const RUINS_TILE_SIZE = 64;
 const RUINS_COLS = 14;
 const RUINS_ROWS = 10;
 
@@ -215,10 +233,116 @@ export const ANCIENT_RUINS: Region = {
         material: 'UNKNOWN',
       },
     },
+    {
+      id: 'fragment-pickup-03',
+      interactable: true,
+      position: { x: 3 * RUINS_TILE_SIZE, y: 5 * RUINS_TILE_SIZE },
+      memoryFragment: 'fragment-03',
+    },
+    {
+      id: 'fragment-pickup-04',
+      interactable: true,
+      position: { x: 10 * RUINS_TILE_SIZE, y: 7 * RUINS_TILE_SIZE },
+      memoryFragment: 'fragment-04',
+    },
+    {
+      id: 'exit-to-signal-core',
+      interactable: true,
+      position: { x: 11 * RUINS_TILE_SIZE, y: 7 * RUINS_TILE_SIZE },
+      exit: {
+        toRegionId: 'region-3',
+        spawnPosition: { x: 5 * SIGNAL_TILE_SIZE, y: 8 * SIGNAL_TILE_SIZE },
+      },
+    },
+  ],
+};
+
+const SIGNAL_COLS = 12;
+const SIGNAL_ROWS = 10;
+
+function buildSignalCoreTiles(): TileType[][] {
+  const tiles: TileType[][] = [];
+
+  for (let row = 0; row < SIGNAL_ROWS; row += 1) {
+    const line: TileType[] = [];
+    for (let col = 0; col < SIGNAL_COLS; col += 1) {
+      const isBorder =
+        row === 0 ||
+        row === SIGNAL_ROWS - 1 ||
+        col === 0 ||
+        col === SIGNAL_COLS - 1;
+      line.push(isBorder ? 'wall' : 'floor');
+    }
+    tiles.push(line);
+  }
+
+  return tiles;
+}
+
+export const SIGNAL_CORE: Region = {
+  id: 'region-3',
+  name: 'Signal Core',
+  tileSize: SIGNAL_TILE_SIZE,
+  tiles: buildSignalCoreTiles(),
+  objects: [
+    {
+      id: 'exit-to-ancient-ruins-from-core',
+      interactable: true,
+      position: { x: 5 * SIGNAL_TILE_SIZE, y: 8 * SIGNAL_TILE_SIZE },
+      exit: {
+        toRegionId: 'region-2',
+        // Aberto, longe do nicho selado (col11-12) e dos switches.
+        spawnPosition: { x: 7 * RUINS_TILE_SIZE, y: 7 * RUINS_TILE_SIZE },
+      },
+    },
+    {
+      id: 'core-node-1',
+      interactable: true,
+      position: { x: 2 * SIGNAL_TILE_SIZE, y: 2 * SIGNAL_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'signal-core-puzzle', switchId: 'node-1' },
+    },
+    {
+      id: 'core-node-2',
+      interactable: true,
+      position: { x: 9 * SIGNAL_TILE_SIZE, y: 2 * SIGNAL_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'signal-core-puzzle', switchId: 'node-2' },
+    },
+    {
+      id: 'core-node-3',
+      interactable: true,
+      position: { x: 2 * SIGNAL_TILE_SIZE, y: 7 * SIGNAL_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'signal-core-puzzle', switchId: 'node-3' },
+    },
+    {
+      id: 'core-node-4',
+      interactable: true,
+      position: { x: 9 * SIGNAL_TILE_SIZE, y: 7 * SIGNAL_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'signal-core-puzzle', switchId: 'node-4' },
+    },
+    {
+      id: 'fragment-pickup-05',
+      interactable: true,
+      position: { x: 3 * SIGNAL_TILE_SIZE, y: 5 * SIGNAL_TILE_SIZE },
+      memoryFragment: 'fragment-05',
+    },
+    {
+      id: 'fragment-pickup-06',
+      interactable: true,
+      position: { x: 8 * SIGNAL_TILE_SIZE, y: 5 * SIGNAL_TILE_SIZE },
+      memoryFragment: 'fragment-06',
+    },
+    {
+      id: 'signal-core',
+      interactable: true,
+      requiresPuzzleSolved: 'signal-core-puzzle',
+      triggersEnding: true,
+      position: { x: 5 * SIGNAL_TILE_SIZE, y: 4 * SIGNAL_TILE_SIZE },
+    },
   ],
 };
 
 export const REGIONS: Record<string, Region> = {
   [LANDING_ZONE.id]: LANDING_ZONE,
   [ANCIENT_RUINS.id]: ANCIENT_RUINS,
+  [SIGNAL_CORE.id]: SIGNAL_CORE,
 };

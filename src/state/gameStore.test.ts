@@ -18,6 +18,9 @@ describe('gameStore', () => {
       installedUpgrades: new Set(),
       currentRegionId: 'region-1',
       solvedPuzzles: new Set(),
+      collectedFragments: new Set(),
+      currentObjective: 'Explore the Landing Zone.',
+      hasReachedEnding: false,
     });
   });
 
@@ -217,5 +220,52 @@ describe('gameStore', () => {
     expect(useGameStore.getState().solvedPuzzles.has('ruins-puzzle-01')).toBe(
       true,
     );
+  });
+
+  it('collectFragment marca o fragmento como coletado e e idempotente', () => {
+    useGameStore.getState().collectFragment('fragment-01');
+    useGameStore.getState().collectFragment('fragment-01');
+
+    expect(useGameStore.getState().collectedFragments.size).toBe(1);
+    expect(useGameStore.getState().collectedFragments.has('fragment-01')).toBe(
+      true,
+    );
+  });
+
+  it('setObjective atualiza o objetivo atual', () => {
+    useGameStore.getState().setObjective('Find a way into the ruins.');
+
+    expect(useGameStore.getState().currentObjective).toBe(
+      'Find a way into the ruins.',
+    );
+  });
+
+  it('triggerEnding marca o encerramento como alcancado', () => {
+    useGameStore.getState().triggerEnding();
+
+    expect(useGameStore.getState().hasReachedEnding).toBe(true);
+  });
+
+  it('resetGame restaura todo o progresso para o estado inicial', () => {
+    useGameStore.getState().triggerEnding();
+    useGameStore.getState().setCurrentRegion('region-3');
+    useGameStore.getState().markPuzzleSolved('ruins-puzzle-01');
+    useGameStore.getState().collectFragment('fragment-01');
+    useGameStore
+      .getState()
+      .addItem({ id: 'a', type: 'resource', name: 'A', stackable: true });
+    useGameStore.getState().installUpgrade('deep-scanner');
+
+    useGameStore.getState().resetGame();
+
+    expect(useGameStore.getState()).toMatchObject({
+      hasReachedEnding: false,
+      currentRegionId: 'region-1',
+      inventory: [],
+      currentObjective: 'Explore the Landing Zone.',
+    });
+    expect(useGameStore.getState().solvedPuzzles.size).toBe(0);
+    expect(useGameStore.getState().collectedFragments.size).toBe(0);
+    expect(useGameStore.getState().installedUpgrades.size).toBe(0);
   });
 });

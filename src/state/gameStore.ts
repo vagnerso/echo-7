@@ -5,30 +5,63 @@ import type { InventoryItem } from '@/entities/inventoryItem';
 
 const DEFAULT_INVENTORY_CAPACITY = 5;
 
-interface GameState {
+interface GameProgress {
   discoveries: Discovery[];
-  addDiscovery: (discovery: Discovery) => void;
-
   inventory: InventoryItem[];
   inventoryCapacity: number;
+  installedUpgrades: ReadonlySet<string>;
+  // 'region-1' precisa bater com LANDING_ZONE.id (content/regions.ts) - o
+  // valor fica hardcoded aqui, nao importado de content/, para state/ nao
+  // depender dos dados de conteudo do jogo.
+  currentRegionId: string;
+  solvedPuzzles: ReadonlySet<string>;
+  collectedFragments: ReadonlySet<string>;
+  currentObjective: string;
+  hasReachedEnding: boolean;
+}
+
+function createInitialProgress(): GameProgress {
+  return {
+    discoveries: [],
+    inventory: [],
+    inventoryCapacity: DEFAULT_INVENTORY_CAPACITY,
+    installedUpgrades: new Set<string>(),
+    currentRegionId: 'region-1',
+    solvedPuzzles: new Set<string>(),
+    collectedFragments: new Set<string>(),
+    currentObjective: 'Explore the Landing Zone.',
+    hasReachedEnding: false,
+  };
+}
+
+interface GameState extends GameProgress {
+  addDiscovery: (discovery: Discovery) => void;
+
   /** Adiciona o item (empilhando se ja existir); retorna false se nao coube (slot novo, sem capacidade). */
   addItem: (
     item: Omit<InventoryItem, 'quantity'> & { quantity?: number },
   ) => boolean;
   removeItem: (id: string, quantity?: number) => void;
 
-  installedUpgrades: ReadonlySet<string>;
   installUpgrade: (id: string) => void;
 
-  currentRegionId: string;
   setCurrentRegion: (regionId: string) => void;
 
-  solvedPuzzles: ReadonlySet<string>;
   markPuzzleSolved: (id: string) => void;
+
+  collectFragment: (id: string) => void;
+
+  setObjective: (text: string) => void;
+
+  triggerEnding: () => void;
+
+  /** Restaura todo o progresso para o estado inicial - usado ao comecar um NEW GAME (Fase 8), ja que ainda nao ha save/load. */
+  resetGame: () => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
-  discoveries: [],
+  ...createInitialProgress(),
+
   addDiscovery: (discovery) => {
     const alreadyDiscovered = get().discoveries.some(
       (existing) => existing.id === discovery.id,
@@ -38,8 +71,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({ discoveries: [...state.discoveries, discovery] }));
   },
 
-  inventory: [],
-  inventoryCapacity: DEFAULT_INVENTORY_CAPACITY,
   addItem: (item) => {
     const { inventory, inventoryCapacity } = get();
     const quantityToAdd = item.quantity ?? 1;
@@ -85,7 +116,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  installedUpgrades: new Set<string>(),
   installUpgrade: (id) => {
     set((state) => {
       if (state.installedUpgrades.has(id)) return state;
@@ -96,13 +126,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  // 'region-1' precisa bater com LANDING_ZONE.id (content/regions.ts) - o
-  // valor fica hardcoded aqui, nao importado de content/, para state/ nao
-  // depender dos dados de conteudo do jogo.
-  currentRegionId: 'region-1',
   setCurrentRegion: (regionId) => set({ currentRegionId: regionId }),
 
-  solvedPuzzles: new Set<string>(),
   markPuzzleSolved: (id) => {
     set((state) => {
       if (state.solvedPuzzles.has(id)) return state;
@@ -112,4 +137,20 @@ export const useGameStore = create<GameState>((set, get) => ({
       return { solvedPuzzles: next };
     });
   },
+
+  collectFragment: (id) => {
+    set((state) => {
+      if (state.collectedFragments.has(id)) return state;
+
+      const next = new Set(state.collectedFragments);
+      next.add(id);
+      return { collectedFragments: next };
+    });
+  },
+
+  setObjective: (text) => set({ currentObjective: text }),
+
+  triggerEnding: () => set({ hasReachedEnding: true }),
+
+  resetGame: () => set(createInitialProgress()),
 }));

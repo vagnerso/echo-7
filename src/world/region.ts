@@ -45,6 +45,10 @@ export interface WorldObject {
   exit?: { toRegionId: string; spawnPosition: Vector2 };
   /** Interagir (tecla E) ativa este switch dentro do puzzle indicado (Fase 7). */
   puzzleSwitch?: { puzzleId: string; switchId: string };
+  /** Interagir (tecla E) coleta este fragmento de memoria (id em content/fragments.ts) (Fase 8). */
+  memoryFragment?: string;
+  /** Interagir (tecla E) dispara o encerramento da vertical slice (Fase 8). */
+  triggersEnding?: boolean;
 }
 
 export interface Region {

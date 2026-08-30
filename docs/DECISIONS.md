@@ -420,6 +420,42 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Correção:** ponto de retorno movido para `(10,10)`, uma área aberta longe de qualquer estrutura gateada.
 
+## Fase 8 — Narrative
+
+### Direção narrativa confirmada com o desenvolvedor antes de implementar
+
+**Contexto:** a seção 27 do prompt mestre define "direção narrativa final (o twist, tom, quanto revelar)" como decisão do desenvolvedor, não da IA.
+
+**Decisão:** propus um esboço do arco (fragmentos ligando as três regiões, a descoberta de que o Signal Core reconhece o ECHO-7 como "parente" mecânico, não humano) e só escrevi o texto final depois de aprovação - incluindo o pedido explícito de fechar com um gancho de continuação ("TO BE CONTINUED"), já que a vertical slice não é o jogo completo.
+
+### Puzzle #2 reaproveita o tipo `sequence`, sem um segundo tipo de puzzle
+
+**Decisão:** o puzzle do Signal Core usa o mesmo `type: 'sequence'` do puzzle da Ancient Ruins, só com 4 nós em vez de 3.
+
+**Motivo:** um tipo novo (ex: `energy-routing`, cogitado no design original) exigiria `WorldObject` novo, renderização nova e lógica nova só por variedade visual - escopo não pedido pelo roadmap. Reaproveitar o tipo já testado e dar mais peso ao puzzle final só com mais nós é a solução mais simples que atende ao pedido.
+
+### Núcleo do Signal Core não usa tile `sealed` - o gate é só no objeto
+
+**Decisão:** o objeto `signal-core` fica inacessível via `requiresPuzzleSolved` diretamente nele, sem nenhuma barreira física (tile) ao redor.
+
+**Motivo:** evita esbarrar na limitação já documentada do tile `sealed` (fixado a um único puzzle, `ruins-puzzle-01`) - se o Signal Core também precisasse de uma parede selada, o hardcode atual quebraria (não saberia dizer qual dos dois puzzles libera qual parede). Gatear só o objeto, sem parede, contorna o problema sem precisar generalizar o mecanismo agora.
+
+### Fragmentos de memória: revelação temporária + registro permanente
+
+**Decisão:** coletar um fragmento mostra um painel por alguns segundos (`FragmentRevealOverlay`, auto-esconde) e também fica registrado permanentemente numa seção do painel de inventário (tecla I) - mesma solução já usada para upgrades na Fase 6 (sem tecla dedicada nova).
+
+**Motivo:** o mockup do prompt mestre (seção 6) mostra o fragmento como uma revelação pontual ("SIGNAL CORRUPTED" / texto / "DATA RECOVERED: %"), mas o jogador também precisa poder reler fragmentos já vistos depois - sem isso, perder a janela de alguns segundos significaria perder o conteúdo para sempre.
+
+### `resetGame`/`resetUi`: bug real de estado que sobrevivia entre partidas
+
+**Contexto:** sem save/load, o estado do Zustand (inventário, upgrades, progresso, e agora `hasReachedEnding`) é um singleton que sobrevive ao desmonte do `GameCanvas` - só o estado local do componente (posição, câmera) resetava ao trocar de tela.
+
+**O problema:** clicar em NEW GAME depois de terminar o jogo levaria direto para a tela de encerramento de novo (`hasReachedEnding` continuava `true`), com o inventário e upgrades da partida anterior ainda presentes.
+
+**Como foi pego:** ao implementar o encerramento, pensando no fluxo "jogador termina, quer jogar de novo" - não foi um bug relatado, foi antecipado revisando o que "NEW GAME" deveria significar antes de testar.
+
+**Correção:** `resetGame()`/`resetUi()` restauram os stores para o estado inicial, chamados no clique de NEW GAME (`App.tsx`), não ao simplesmente voltar para o menu - assim uma futura tela de "CONTINUE" (quando o save system existir) pode restaurar progresso sem esse reset.
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).

@@ -1,3 +1,4 @@
+import { MEMORY_FRAGMENTS } from '@/content/fragments';
 import { UPGRADES } from '@/content/upgrades';
 import { useGameStore } from '@/state/gameStore';
 import { useUiStore } from '@/state/uiStore';
@@ -9,8 +10,13 @@ export function InventoryPanel() {
   const inventory = useGameStore((state) => state.inventory);
   const capacity = useGameStore((state) => state.inventoryCapacity);
   const installedUpgrades = useGameStore((state) => state.installedUpgrades);
+  const collectedFragments = useGameStore((state) => state.collectedFragments);
 
   if (!isOpen) return null;
+
+  const collected = MEMORY_FRAGMENTS.filter((fragment) =>
+    collectedFragments.has(fragment.id),
+  );
 
   return (
     <div className={styles.backdrop}>
@@ -44,6 +50,26 @@ export function InventoryPanel() {
             </li>
           ))}
         </ul>
+
+        <p className={styles.sectionTitle}>
+          MEMORY FRAGMENTS ({collected.length}/{MEMORY_FRAGMENTS.length})
+        </p>
+        {collected.length === 0 ? (
+          <p className={styles.empty}>Nenhum fragmento recuperado ainda.</p>
+        ) : (
+          <ul className={styles.list}>
+            {collected.map((fragment) => (
+              <li key={fragment.id} className={styles.fragmentEntry}>
+                <p className={styles.fragmentText}>
+                  &quot;{fragment.text}&quot;
+                </p>
+                <p className={styles.fragmentMeta}>
+                  DATA RECOVERED: {fragment.corruption}%
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

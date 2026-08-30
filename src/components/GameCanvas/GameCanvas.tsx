@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 
+import { MEMORY_FRAGMENTS } from '@/content/fragments';
 import { PUZZLES } from '@/content/puzzles';
 import { REGIONS } from '@/content/regions';
 import {
@@ -10,6 +11,7 @@ import {
 } from '@/engine/camera';
 import { computeCanvasSize } from '@/engine/canvasSize';
 import { InputManager } from '@/engine/inputManager';
+import type { MemoryFragment } from '@/entities/memoryFragment';
 import { createPlayer, type Player, type Vector2 } from '@/entities/player';
 import type { Puzzle } from '@/entities/puzzle';
 import { useGameLoop } from '@/hooks/useGameLoop';
@@ -57,6 +59,10 @@ const PUZZLES_BY_ID: Record<string, Puzzle> = Object.fromEntries(
   PUZZLES.map((puzzle) => [puzzle.id, puzzle]),
 );
 
+const FRAGMENTS_BY_ID: Record<string, MemoryFragment> = Object.fromEntries(
+  MEMORY_FRAGMENTS.map((fragment) => [fragment.id, fragment]),
+);
+
 // So existe um puzzle no MVP - o tile 'sealed' sempre se refere a ele (ver
 // nota em world/region.ts). Um segundo puzzle exigiria tiles 'sealed' com
 // metadado por tile em vez desta constante fixa.
@@ -78,6 +84,7 @@ const SWITCH_COLOR = 'rgba(170, 120, 230, 0.6)';
 const SWITCH_ACTIVE_COLOR = 'rgba(200, 160, 255, 0.95)';
 const HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.9)';
 const SCANNABLE_COLOR = 'rgba(120, 170, 255, 0.7)';
+const MEMORY_FRAGMENT_COLOR = 'rgba(230, 130, 200, 0.85)';
 
 function renderPlayer(
   ctx: CanvasRenderingContext2D,
@@ -204,6 +211,18 @@ function renderInteractables(
       ctx.fillStyle = isActive ? SWITCH_ACTIVE_COLOR : SWITCH_COLOR;
       ctx.beginPath();
       ctx.arc(screenPosition.x, screenPosition.y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
+
+    if (object.memoryFragment) {
+      // Triangulo: diferencia visualmente de todo o resto ate ter arte de verdade (Fase 9).
+      ctx.fillStyle = MEMORY_FRAGMENT_COLOR;
+      ctx.beginPath();
+      ctx.moveTo(screenPosition.x, screenPosition.y - 10);
+      ctx.lineTo(screenPosition.x + 9, screenPosition.y + 7);
+      ctx.lineTo(screenPosition.x - 9, screenPosition.y + 7);
+      ctx.closePath();
       ctx.fill();
       continue;
     }
@@ -373,6 +392,16 @@ export function GameCanvas() {
           cameraRef.current = createCamera(spawnPosition);
           nearestInteractableRef.current = null;
           nearestScannableRef.current = null;
+
+          if (toRegionId === 'region-2') {
+            useGameStore
+              .getState()
+              .setObjective('Investigate the Ancient Ruins.');
+          } else if (toRegionId === 'region-3') {
+            useGameStore.getState().setObjective('Activate the Signal Core.');
+          }
+        } else if (nearestInteractable.triggersEnding) {
+          useGameStore.getState().triggerEnding();
         } else if (nearestInteractable.puzzleSwitch) {
           const { puzzleId, switchId } = nearestInteractable.puzzleSwitch;
           const puzzle = PUZZLES_BY_ID[puzzleId];
@@ -385,7 +414,25 @@ export function GameCanvas() {
 
             if (result.solved) {
               useGameStore.getState().markPuzzleSolved(puzzleId);
+
+              if (puzzleId === 'ruins-puzzle-01') {
+                useGameStore
+                  .getState()
+                  .setObjective('Find a way to the Signal Core.');
+              } else if (puzzleId === 'signal-core-puzzle') {
+                useGameStore.getState().setObjective('Approach the Core.');
+              }
             }
+          }
+        } else if (nearestInteractable.memoryFragment) {
+          const fragmentId = nearestInteractable.memoryFragment;
+          const fragment = FRAGMENTS_BY_ID[fragmentId];
+
+          collectedItemsRef.current.add(nearestInteractable.id);
+          nearestInteractableRef.current = null;
+          useGameStore.getState().collectFragment(fragmentId);
+          if (fragment) {
+            useUiStore.getState().setActiveFragmentReveal(fragment);
           }
         } else if (nearestInteractable.collectible) {
           const added = useGameStore
