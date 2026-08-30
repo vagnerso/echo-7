@@ -456,6 +456,36 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Correção:** `resetGame()`/`resetUi()` restauram os stores para o estado inicial, chamados no clique de NEW GAME (`App.tsx`), não ao simplesmente voltar para o menu - assim uma futura tela de "CONTINUE" (quando o save system existir) pode restaurar progresso sem esse reset.
 
+## Fase 9 — Polish
+
+### Áudio sintetizado via Web Audio API, sem arquivos de som
+
+**Decisão:** `engine/audio.ts` gera tons simples com osciladores (`AudioContext`/`OscillatorNode`) para passos, scanner, interação, coleta e puzzle resolvido - nenhum arquivo de áudio no projeto.
+
+**Motivo:** a seção 23 do prompt mestre marca áudio como mínimo/opcional; sintetizar por código atende a lista pedida (passos, scanner, interação, confirmação) sem precisar de um pipeline de assets de áudio nem de dependências novas.
+
+**Limitação assumida:** não tenho como ouvir o resultado - verifiquei apenas que o código executa sem erros (via console do navegador) em cada ponto de disparo. A qualidade/adequação sonora real precisa de validação manual sua, jogando de verdade.
+
+### Partículas: matemática testável, emissão (posição/cor/aleatoriedade) não
+
+**Decisão:** `engine/particleSystem.ts` (mover, decair, expirar, limitar quantidade) é puro e testado; os parâmetros de emissão (onde nasce, direção aleatória, cor) ficam direto no `GameCanvas`, sem teste - mesmo critério já usado para o "bounce" de depuração da Fase 1.3.
+
+**Motivo:** a lógica determinística (o que muda dado um estado + dt) vale a pena travar com teste; os parâmetros cosméticos de uma emissão aleatória não teriam uma asserção significativa além de "não quebra".
+
+### Limite de partículas (`MAX_PARTICLES = 150`, descarta as mais antigas)
+
+**Decisão:** `spawnParticles` descarta as partículas mais antigas (FIFO) se o total passar de 150.
+
+**Motivo:** a seção 21 do prompt mestre pede atenção a "particle limits" - sem um teto, algo emitindo mais rápido do que as partículas expiram cresceria sem controle. Descartar as mais antigas (não as mais novas) prioriza o efeito visual mais recente, que é o que o jogador acabou de causar.
+
+### Transição de região congela o jogo durante o fade
+
+**Decisão:** ao interagir com uma saída, o `GameCanvas` entra num estado de transição (`'out'` → aplica a troca de região → `'in'`) que **pula** todo o resto do `update()` (movimento, interação, scanner) enquanto ativo - o jogo fica "congelado" sob o fade preto.
+
+**Motivo:** mais simples que tentar processar gameplay normalmente por baixo de uma tela momentaneamente preta, e evita que o jogador ative outra interação por engano durante os ~250ms de cada metade da transição. `input.clearJustPressed()` continua sendo chamado durante o congelamento, para não "vazar" uma tecla segurada durante o fade para o instante em que o jogo volta a responder.
+
+**Achado da verificação:** em teste automatizado (Playwright), a transição inteira às vezes acontece num único salto ao invés de progredir suavemente ao longo dos ~500ms esperados. Isso é uma consequência do acumulador de timestep fixo (documentado desde a Fase 1.3): quando o navegador atrasa a entrega de um frame, o loop processa vários passos fixos de uma vez para recompensar o atraso, e isso pode acontecer bem mais em automação com captura de screenshot do que num jogo real rodando a 60fps estável. A matemática em si (`progress += dt / TRANSITION_DURATION_MS`) está correta - confirmei que o fade preto de fato aparece e que a região troca corretamente no meio dele; a suavidade visual completa depende de framerate estável, que é o caso normal de uso.
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).

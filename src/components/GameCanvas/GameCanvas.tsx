@@ -4,6 +4,13 @@ import { MEMORY_FRAGMENTS } from '@/content/fragments';
 import { PUZZLES } from '@/content/puzzles';
 import { REGIONS } from '@/content/regions';
 import {
+  playFootstepSound,
+  playInteractSound,
+  playPickupSound,
+  playPuzzleSolvedSound,
+  playScannerToggleSound,
+} from '@/engine/audio';
+import {
   type Camera,
   createCamera,
   updateCameraFollow,
@@ -11,6 +18,11 @@ import {
 } from '@/engine/camera';
 import { computeCanvasSize } from '@/engine/canvasSize';
 import { InputManager } from '@/engine/inputManager';
+import {
+  type Particle,
+  spawnParticles,
+  updateParticles,
+} from '@/engine/particleSystem';
 import type { MemoryFragment } from '@/entities/memoryFragment';
 import { createPlayer, type Player, type Vector2 } from '@/entities/player';
 import type { Puzzle } from '@/entities/puzzle';
@@ -68,6 +80,17 @@ const FRAGMENTS_BY_ID: Record<string, MemoryFragment> = Object.fromEntries(
 // metadado por tile em vez desta constante fixa.
 const SEALED_TILE_PUZZLE_ID = 'ruins-puzzle-01';
 
+const FOOTSTEP_INTERVAL_MS = 260;
+const FOOTSTEP_PARTICLE_COLOR = 'rgba(94, 230, 200, 0.6)';
+/** Duracao de cada metade (fade-out, fade-in) da transicao entre regioes. */
+const TRANSITION_DURATION_MS = 250;
+
+interface TransitionState {
+  phase: 'idle' | 'out' | 'in';
+  progress: number;
+  pendingExit: NonNullable<WorldObject['exit']> | null;
+}
+
 const PLAYER_COLOR = '#5ee6c8';
 const WALL_COLOR = 'rgba(94, 230, 200, 0.12)';
 const WALL_BORDER_COLOR = 'rgba(94, 230, 200, 0.4)';
@@ -100,8 +123,9 @@ function renderPlayer(
     size.y,
   );
 
-  // Marcador simples indicando para onde o ECHO-7 esta olhando, ate existir
-  // sprite de verdade (Fase 9).
+  // Marcador simples indicando para onde o ECHO-7 esta olhando - placeholder
+  // ate existir sprite de verdade (nenhuma fase do MVP inclui arte final;
+  // ficaria para um pipeline de assets futuro, fora do escopo atual).
   const markerOffset = size.x / 2 + 6;
   const markerPosition: Vector2 = { ...screenPosition };
   if (facing === 'up') markerPosition.y -= markerOffset;
@@ -192,14 +216,14 @@ function renderInteractables(
     }
 
     if (object.exit) {
-      // Retangulo tipo "porta", para diferenciar de todo o resto ate ter arte de verdade (Fase 9).
+      // Retangulo tipo "porta", para diferenciar de todo o resto - placeholder ate existir arte de verdade.
       ctx.fillStyle = EXIT_COLOR;
       ctx.fillRect(screenPosition.x - 8, screenPosition.y - 12, 16, 24);
       continue;
     }
 
     if (object.collectible) {
-      // Item coletavel: quadrado, para diferenciar de um interagivel fixo (console) ate ter arte de verdade (Fase 9).
+      // Item coletavel: quadrado, para diferenciar de um interagivel fixo (console) - placeholder ate existir arte de verdade.
       ctx.fillStyle = COLLECTIBLE_COLOR;
       ctx.fillRect(screenPosition.x - 8, screenPosition.y - 8, 16, 16);
       continue;
@@ -216,7 +240,7 @@ function renderInteractables(
     }
 
     if (object.memoryFragment) {
-      // Triangulo: diferencia visualmente de todo o resto ate ter arte de verdade (Fase 9).
+      // Triangulo: diferencia visualmente de todo o resto - placeholder ate existir arte de verdade.
       ctx.fillStyle = MEMORY_FRAGMENT_COLOR;
       ctx.beginPath();
       ctx.moveTo(screenPosition.x, screenPosition.y - 10);
@@ -267,7 +291,7 @@ function renderScannables(
       ctx.stroke();
     }
 
-    // Losango em vez de circulo: diferencia visualmente de interactable ate existir arte de verdade (Fase 9).
+    // Losango em vez de circulo: diferencia visualmente de interactable - placeholder ate existir arte de verdade.
     ctx.fillStyle = SCANNABLE_COLOR;
     ctx.beginPath();
     ctx.moveTo(screenPosition.x, screenPosition.y - 10);
@@ -277,6 +301,31 @@ function renderScannables(
     ctx.closePath();
     ctx.fill();
   }
+}
+
+function renderParticles(
+  ctx: CanvasRenderingContext2D,
+  particles: readonly Particle[],
+  camera: Camera,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  for (const particle of particles) {
+    const screenPosition = worldToScreen(
+      particle.position,
+      camera,
+      canvasWidth,
+      canvasHeight,
+    );
+    const alpha = Math.max(0, Math.min(1, particle.life / particle.maxLife));
+
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = particle.color;
+    ctx.beginPath();
+    ctx.arc(screenPosition.x, screenPosition.y, particle.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 }
 
 const INITIAL_SPAWN: Vector2 = { x: 200, y: 200 };
@@ -300,6 +349,29 @@ export function GameCanvas() {
   // tentativa) - diferente de "resolvido" (gameStore.solvedPuzzles), que e
   // permanente. Perder o progresso parcial ao recarregar e aceitavel.
   const puzzleProgressRef = useRef<Map<string, string[]>>(new Map());
+  const particlesRef = useRef<Particle[]>([]);
+  const footstepTimerRef = useRef<number>(FOOTSTEP_INTERVAL_MS);
+  const transitionRef = useRef<TransitionState>({
+    phase: 'idle',
+    progress: 0,
+    pendingExit: null,
+  });
+
+  const applyExit = (exit: NonNullable<WorldObject['exit']>) => {
+    const { toRegionId, spawnPosition } = exit;
+    useGameStore.getState().setCurrentRegion(toRegionId);
+
+    playerRef.current.position.x = spawnPosition.x;
+    playerRef.current.position.y = spawnPosition.y;
+    previousPositionRef.current = { ...spawnPosition };
+    cameraRef.current = createCamera(spawnPosition);
+
+    if (toRegionId === 'region-2') {
+      useGameStore.getState().setObjective('Investigate the Ancient Ruins.');
+    } else if (toRegionId === 'region-3') {
+      useGameStore.getState().setObjective('Activate the Signal Core.');
+    }
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -338,6 +410,31 @@ export function GameCanvas() {
       const input = inputRef.current;
       if (!input) return;
 
+      particlesRef.current = updateParticles(particlesRef.current, dt);
+
+      const transition = transitionRef.current;
+      if (transition.phase !== 'idle') {
+        transition.progress += dt / TRANSITION_DURATION_MS;
+
+        if (transition.progress >= 1) {
+          if (transition.phase === 'out' && transition.pendingExit) {
+            applyExit(transition.pendingExit);
+            transition.phase = 'in';
+            transition.progress = 0;
+            transition.pendingExit = null;
+          } else {
+            transition.phase = 'idle';
+            transition.progress = 0;
+          }
+        }
+
+        // Ainda consome os toques de tecla acumulados durante a transicao,
+        // para nao "vazar" uma interacao que o jogador segurou durante o
+        // fade para o instante em que o jogo volta a responder.
+        input.clearJustPressed();
+        return;
+      }
+
       const regionId = useGameStore.getState().currentRegionId;
       const regionData = REGION_DATA[regionId];
       if (!regionData) return;
@@ -369,6 +466,46 @@ export function GameCanvas() {
       player.position.x = resolved.x;
       player.position.y = resolved.y;
 
+      const isMoving =
+        Math.abs(player.velocity.x) > 0.001 ||
+        Math.abs(player.velocity.y) > 0.001;
+
+      if (isMoving) {
+        footstepTimerRef.current += dt;
+
+        if (footstepTimerRef.current >= FOOTSTEP_INTERVAL_MS) {
+          footstepTimerRef.current = 0;
+          playFootstepSound();
+
+          // Particula nasce um pouco atras do jogador (oposto de para onde
+          // ele esta olhando), como uma pequena poeira de passo.
+          const behindOffset = player.size.x / 2;
+          const spawnPosition: Vector2 = { ...player.position };
+          if (player.facing === 'up') spawnPosition.y += behindOffset;
+          if (player.facing === 'down') spawnPosition.y -= behindOffset;
+          if (player.facing === 'left') spawnPosition.x += behindOffset;
+          if (player.facing === 'right') spawnPosition.x -= behindOffset;
+
+          particlesRef.current = spawnParticles(particlesRef.current, [
+            {
+              position: spawnPosition,
+              velocity: {
+                x: (Math.random() - 0.5) * 0.02,
+                y: (Math.random() - 0.5) * 0.02,
+              },
+              life: 350,
+              maxLife: 350,
+              color: FOOTSTEP_PARTICLE_COLOR,
+              size: 3,
+            },
+          ]);
+        }
+      } else {
+        // Assim que o jogador voltar a andar, o proximo passo toca na hora,
+        // em vez de esperar o intervalo inteiro de novo.
+        footstepTimerRef.current = FOOTSTEP_INTERVAL_MS;
+      }
+
       const activeObjects = regionData.region.objects.filter(
         (object) => !collectedItemsRef.current.has(object.id),
       );
@@ -383,24 +520,16 @@ export function GameCanvas() {
 
       if (nearestInteractable && input.wasActionJustPressed('interact')) {
         if (nearestInteractable.exit) {
-          const { toRegionId, spawnPosition } = nearestInteractable.exit;
-          useGameStore.getState().setCurrentRegion(toRegionId);
-
-          player.position.x = spawnPosition.x;
-          player.position.y = spawnPosition.y;
-          previousPositionRef.current = { ...spawnPosition };
-          cameraRef.current = createCamera(spawnPosition);
+          playInteractSound();
+          transitionRef.current = {
+            phase: 'out',
+            progress: 0,
+            pendingExit: nearestInteractable.exit,
+          };
           nearestInteractableRef.current = null;
           nearestScannableRef.current = null;
-
-          if (toRegionId === 'region-2') {
-            useGameStore
-              .getState()
-              .setObjective('Investigate the Ancient Ruins.');
-          } else if (toRegionId === 'region-3') {
-            useGameStore.getState().setObjective('Activate the Signal Core.');
-          }
         } else if (nearestInteractable.triggersEnding) {
+          playPuzzleSolvedSound();
           useGameStore.getState().triggerEnding();
         } else if (nearestInteractable.puzzleSwitch) {
           const { puzzleId, switchId } = nearestInteractable.puzzleSwitch;
@@ -413,6 +542,7 @@ export function GameCanvas() {
             puzzleProgressRef.current.set(puzzleId, result.progress);
 
             if (result.solved) {
+              playPuzzleSolvedSound();
               useGameStore.getState().markPuzzleSolved(puzzleId);
 
               if (puzzleId === 'ruins-puzzle-01') {
@@ -422,12 +552,15 @@ export function GameCanvas() {
               } else if (puzzleId === 'signal-core-puzzle') {
                 useGameStore.getState().setObjective('Approach the Core.');
               }
+            } else {
+              playInteractSound();
             }
           }
         } else if (nearestInteractable.memoryFragment) {
           const fragmentId = nearestInteractable.memoryFragment;
           const fragment = FRAGMENTS_BY_ID[fragmentId];
 
+          playPickupSound();
           collectedItemsRef.current.add(nearestInteractable.id);
           nearestInteractableRef.current = null;
           useGameStore.getState().collectFragment(fragmentId);
@@ -439,6 +572,7 @@ export function GameCanvas() {
             .getState()
             .addItem(nearestInteractable.collectible);
           if (added) {
+            playPickupSound();
             collectedItemsRef.current.add(nearestInteractable.id);
             nearestInteractableRef.current = null;
 
@@ -470,6 +604,7 @@ export function GameCanvas() {
             }
           }
         } else {
+          playInteractSound();
           const activated = activatedInteractablesRef.current;
           activated.set(
             nearestInteractable.id,
@@ -479,6 +614,7 @@ export function GameCanvas() {
       }
 
       if (input.wasActionJustPressed('scanner')) {
+        playScannerToggleSound();
         useUiStore.getState().toggleScanner();
       }
 
@@ -600,6 +736,13 @@ export function GameCanvas() {
         canvas.width,
         canvas.height,
       );
+      renderParticles(
+        ctx,
+        particlesRef.current,
+        camera,
+        canvas.width,
+        canvas.height,
+      );
 
       const screenPosition = worldToScreen(
         renderPosition,
@@ -608,6 +751,16 @@ export function GameCanvas() {
         canvas.height,
       );
       renderPlayer(ctx, screenPosition, player.facing, player.size);
+
+      const transition = transitionRef.current;
+      if (transition.phase !== 'idle') {
+        const fadeAlpha =
+          transition.phase === 'out'
+            ? Math.min(transition.progress, 1)
+            : Math.max(1 - transition.progress, 0);
+        ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
     },
   });
 
