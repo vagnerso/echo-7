@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { EventTargetLike, KeyEventLike } from './inputManager';
-import { InputManager } from './inputManager';
+import { formatKeyLabel, InputManager } from './inputManager';
 
 /** Alvo de eventos falso: registra os listeners e permite dispara-los manualmente, sem precisar de DOM/jsdom. */
 function createFakeEventTarget(): EventTargetLike & {
@@ -137,5 +137,20 @@ describe('InputManager', () => {
     input.clearJustPressed();
 
     expect(input.wasActionJustPressed('interact')).toBe(false);
+  });
+});
+
+describe('formatKeyLabel', () => {
+  it('remove o prefixo "Key" de teclas de letra', () => {
+    expect(formatKeyLabel('KeyW')).toBe('W');
+  });
+
+  it('converte teclas de seta no simbolo correspondente', () => {
+    expect(formatKeyLabel('ArrowUp')).toBe('↑');
+    expect(formatKeyLabel('ArrowLeft')).toBe('←');
+  });
+
+  it('mantem outros codes sem alteracao', () => {
+    expect(formatKeyLabel('Space')).toBe('Space');
   });
 });

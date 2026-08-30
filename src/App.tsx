@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { ControlsHint } from '@/components/Controls/ControlsHint';
 import { EndingScreen } from '@/components/Ending/EndingScreen';
 import { GameCanvas } from '@/components/GameCanvas/GameCanvas';
 import { InventoryPanel } from '@/components/Inventory/InventoryPanel';
@@ -52,6 +53,7 @@ function App() {
           <InventoryPanel />
           <MissionHUD />
           <FragmentRevealOverlay />
+          <ControlsHint />
         </>
       )}
     </div>

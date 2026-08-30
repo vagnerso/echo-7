@@ -578,3 +578,14 @@ Com o MVP completo (Fases 0-10), o roadmap original não previa uma passada de a
 
 **O que mudou visualmente:** cantos cortados (`clip-path`, no lugar de bordas retas) para reforçar a estética angulosa já pretendida; glow externo via `filter: drop-shadow` (acompanha o contorno recortado, ao contrário de `box-shadow`, que iluminaria como um retângulo por baixo de um painel com cantos cortados); textura sutil de scanline (`repeating-linear-gradient` em baixa opacidade) simulando uma tela CRT; título com leve `text-shadow` para todos os cabeçalhos de painel. Botões (`MainMenu`, `EndingScreen`) passaram a usar a mesma classe `.button` compartilhada, com cantos cortados e glow no hover.
 
+### Painel de comandos (`ControlsHint`) deriva os rótulos de `ACTION_TO_KEYS`, não duplica as teclas
+
+**Contexto:** o jogo não mostrava em lugar nenhum quais teclas fazem o quê (WASD/setas para mover, `E` interagir, `Q` scanner, `I` inventário) - o mapeamento só existia em `engine/inputManager.ts`, internamente ao módulo (`ACTION_TO_KEYS` não era exportado).
+
+**Decisão:** `ACTION_TO_KEYS` passou a ser exportado, e ganhou uma função irmã `formatKeyLabel` (também exportada, testada em `inputManager.test.ts`) que converte um `code` de tecla no rótulo curto de exibição (`'KeyW'` → `'W'`, `'ArrowUp'` → `'↑'`). O novo componente `components/Controls/ControlsHint.tsx` monta a lista exibida **a partir** desses dados, sem repetir nenhum nome de tecla como string solta.
+
+**Alternativa considerada:** escrever a lista de comandos como strings fixas direto no componente (`{ keys: 'WASD', action: 'Move' }`, etc.) - mais simples de ler, mas duplicaria o mapeamento de teclas em dois lugares; se o esquema de controles mudasse (rebind, nova tecla), o painel na tela poderia ficar desatualizado silenciosamente, sem nenhum erro de compilação avisando.
+
+**Motivo:** `engine/inputManager.ts` já é a fonte de verdade sobre o que cada tecla faz - fazer a UI ler dali (em vez de replicar o conhecimento) é a mesma ideia de "single source of truth" já aplicada em outros pontos do projeto (ex: `SEALED_TILE_PUZZLE_ID`), e elimina uma categoria inteira de bug (UI desatualizada em relação ao input real).
+
+**Posicionamento:** canto inferior esquerdo, único canto ainda livre entre os HUDs existentes (Scanner ocupa o superior esquerdo, Mission o superior direito, revelação de fragmento o inferior central). Painel sempre visível durante o gameplay (mesmo padrão de Mission/Scanner: `pointer-events: none`, sem toggle) - mais simples do que introduzir uma tecla de "ajuda" dedicada, e a lista é curta o bastante para não poluir a tela.

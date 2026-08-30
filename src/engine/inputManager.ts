@@ -23,7 +23,10 @@ export interface EventTargetLike {
 // event.code (posicao fisica da tecla) em vez de event.key: assim WASD
 // funciona pela posicao no teclado, independente do layout (ex: em AZERTY
 // a tecla na posicao de "W" tem code 'KeyW' mas key 'z').
-const ACTION_TO_KEYS: Record<GameAction, readonly string[]> = {
+// Exportado (nao so uso interno) para ser a fonte unica de verdade tambem
+// para a UI de comandos (components/Controls/ControlsHint.tsx) - assim ela
+// nunca desalinha do que o jogo realmente aceita.
+export const ACTION_TO_KEYS: Record<GameAction, readonly string[]> = {
   moveUp: ['KeyW', 'ArrowUp'],
   moveDown: ['KeyS', 'ArrowDown'],
   moveLeft: ['KeyA', 'ArrowLeft'],
@@ -32,6 +35,20 @@ const ACTION_TO_KEYS: Record<GameAction, readonly string[]> = {
   scanner: ['KeyQ'],
   inventory: ['KeyI'],
 };
+
+const ARROW_KEY_LABELS: Record<string, string> = {
+  ArrowUp: '↑',
+  ArrowDown: '↓',
+  ArrowLeft: '←',
+  ArrowRight: '→',
+};
+
+/** Rotulo curto de um `code` de tecla para exibicao na UI (ex: 'KeyW' -> 'W', 'ArrowUp' -> uma seta). */
+export function formatKeyLabel(code: string): string {
+  const arrowLabel = ARROW_KEY_LABELS[code];
+  if (arrowLabel) return arrowLabel;
+  return code.startsWith('Key') ? code.slice(3) : code;
+}
 
 const KEY_TO_ACTION = new Map<string, GameAction>();
 for (const [action, keys] of Object.entries(ACTION_TO_KEYS) as [
