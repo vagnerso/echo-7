@@ -37,6 +37,7 @@ import {
   findNearestScannable,
 } from '@/systems/scannerSystem';
 import { findInstallableUpgrades } from '@/systems/upgradeSystem';
+import { saveGame } from '@/save/saveGame';
 import { useGameStore } from '@/state/gameStore';
 import { useUiStore } from '@/state/uiStore';
 import type { Region, WorldObject } from '@/world/region';
@@ -330,12 +331,29 @@ function renderParticles(
 
 const INITIAL_SPAWN: Vector2 = { x: 200, y: 200 };
 
+// Ponto de entrada de cada regiao, para quando o jogador "continua" um save
+// que nao esta na Landing Zone. Precisam bater com os spawnPosition dos
+// exits correspondentes em content/regions.ts - a posicao exata do jogador
+// nao entra no save (fica fora da gameStore por performance, ver
+// docs/DECISIONS.md), entao ao continuar ele reaparece na entrada da regiao,
+// nao no pixel exato de onde saiu.
+const REGION_SPAWN_POINTS: Record<string, Vector2> = {
+  'region-1': INITIAL_SPAWN,
+  'region-2': { x: 128, y: 448 },
+  'region-3': { x: 320, y: 512 },
+};
+
+function resolveSpawnPoint(): Vector2 {
+  const regionId = useGameStore.getState().currentRegionId;
+  return REGION_SPAWN_POINTS[regionId] ?? INITIAL_SPAWN;
+}
+
 export function GameCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const playerRef = useRef<Player>(createPlayer(INITIAL_SPAWN));
-  const previousPositionRef = useRef<Vector2>({ ...INITIAL_SPAWN });
-  const cameraRef = useRef<Camera>(createCamera(INITIAL_SPAWN));
+  const playerRef = useRef<Player>(createPlayer(resolveSpawnPoint()));
+  const previousPositionRef = useRef<Vector2>({ ...resolveSpawnPoint() });
+  const cameraRef = useRef<Camera>(createCamera(resolveSpawnPoint()));
   const inputRef = useRef<InputManager | null>(null);
   const nearestInteractableRef = useRef<WorldObject | null>(null);
   const nearestScannableRef = useRef<WorldObject | null>(null);
@@ -403,6 +421,15 @@ export function GameCanvas() {
     const input = new InputManager();
     inputRef.current = input;
     return () => input.destroy();
+  }, []);
+
+  useEffect(() => {
+    // Autosave: a gameStore so muda em eventos discretos de progresso (nunca
+    // a cada frame - ver docs/DECISIONS.md), entao salvar a cada mudanca e
+    // barato e nao precisa de debounce.
+    return useGameStore.subscribe(() => {
+      saveGame();
+    });
   }, []);
 
   useGameLoop({

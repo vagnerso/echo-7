@@ -2,11 +2,11 @@ import styles from './MainMenu.module.css';
 
 export interface MainMenuProps {
   onNewGame: () => void;
-  /** Existe progresso salvo para continuar? Sempre false ate a Fase 8 (save/load) existir. */
+  onContinue: () => void;
   hasSave: boolean;
 }
 
-export function MainMenu({ onNewGame, hasSave }: MainMenuProps) {
+export function MainMenu({ onNewGame, onContinue, hasSave }: MainMenuProps) {
   return (
     <div className={styles.menu}>
       <h1 className={styles.title}>ECHO-7</h1>
@@ -18,6 +18,7 @@ export function MainMenu({ onNewGame, hasSave }: MainMenuProps) {
         </button>
         <button
           type="button"
+          onClick={onContinue}
           disabled={!hasSave}
           title={hasSave ? undefined : 'Nenhum progresso salvo ainda'}
         >

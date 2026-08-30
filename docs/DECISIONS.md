@@ -486,6 +486,40 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Achado da verificação:** em teste automatizado (Playwright), a transição inteira às vezes acontece num único salto ao invés de progredir suavemente ao longo dos ~500ms esperados. Isso é uma consequência do acumulador de timestep fixo (documentado desde a Fase 1.3): quando o navegador atrasa a entrega de um frame, o loop processa vários passos fixos de uma vez para recompensar o atraso, e isso pode acontecer bem mais em automação com captura de screenshot do que num jogo real rodando a 60fps estável. A matemática em si (`progress += dt / TRANSITION_DURATION_MS`) está correta - confirmei que o fade preto de fato aparece e que a região troca corretamente no meio dele; a suavidade visual completa depende de framerate estável, que é o caso normal de uso.
 
+## Fase 10 — Release
+
+### Lacuna encontrada: save/load nunca foi alocado numa fase do roadmap
+
+**Contexto:** a seção 18 do prompt mestre e a definição de MVP da Fase 0 (seção H: "Entra: Save/load versionado em localStorage") exigem persistência - mas as dez fases do roadmap que propus na Fase 0 nunca reservaram uma tarefa explícita para isso. O botão CONTINUE ficou desabilitado (`hasSave={false}` fixo) desde a Fase 1 sem que ninguém notasse a causa raiz.
+
+**Como foi encontrado:** ao escrever a seção "Project Structure" do README para a Fase 10, notei que uma pasta `save/` estava listada mas nunca tinha sido criada - o que expôs a lacuna.
+
+**Decisão:** implementar agora, antes do release, confirmado com o desenvolvedor.
+
+### Posição exata do jogador não entra no save
+
+**Decisão:** `saveGame`/`loadGame` persistem progresso (inventário, upgrades, puzzles resolvidos, fragmentos, região atual, objetivo, se o final foi alcançado) mas não a posição em pixels do jogador. Ao continuar, ele reaparece no ponto de entrada da região salva (`REGION_SPAWN_POINTS`), não exatamente onde estava.
+
+**Motivo:** a posição do jogador vive fora da `gameStore` de propósito, por performance (Fase 0/1.4) - trazê-la de volta só para o save exigiria reintroduzir exatamente o problema que essa decisão evitou (posição sincronizada com um estado observável). Reaparecer na entrada da região é uma simplificação comum em jogos desse porte e preserva tudo que realmente importa (progresso).
+
+### `StorageLike` injetável, mesmo padrão do `InputManager`/`GameLoop`
+
+**Decisão:** `saveGame`/`loadGame`/`hasSaveGame` recebem um parâmetro opcional de storage (`getItem`/`setItem`/`removeItem`), com o `localStorage` real como padrão.
+
+**Motivo:** permite testar toda a lógica de serialização/versionamento com um storage falso em memória, sem depender de `localStorage` estar disponível no ambiente de teste (`node`) - mesmo raciocínio já aplicado ao alvo de eventos do `InputManager` e às dependências de tempo do `GameLoop`.
+
+### Autosave via `store.subscribe`, sem tecla ou botão de salvar
+
+**Decisão:** o `GameCanvas` assina mudanças na `gameStore` e chama `saveGame()` a cada uma, sem debounce.
+
+**Motivo:** o esquema de controles do prompt mestre não define uma tecla de salvar, e a `gameStore` já só muda em eventos discretos de progresso (nunca a cada frame, por design desde a Fase 0/1.4) - então salvar a cada mudança é barato e não precisa de throttling.
+
+### `NEW GAME` salva imediatamente após resetar
+
+**Decisão:** `handleNewGame` chama `resetGame()` e, na sequência, `saveGame()` explicitamente, antes mesmo de qualquer evento de progresso acontecer.
+
+**Motivo:** sem isso, um jogador que clicasse NEW GAME e fechasse a aba imediatamente ainda veria CONTINUE apontando para o save da partida anterior (o autosave só dispararia no primeiro evento de progresso da nova partida).
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).

@@ -7,6 +7,7 @@ import { MainMenu } from '@/components/MainMenu/MainMenu';
 import { FragmentRevealOverlay } from '@/components/MemoryFragment/FragmentRevealOverlay';
 import { MissionHUD } from '@/components/Mission/MissionHUD';
 import { ScannerOverlay } from '@/components/Scanner/ScannerOverlay';
+import { hasSaveGame, loadGame, saveGame } from '@/save/saveGame';
 import { useGameStore } from '@/state/gameStore';
 import { useUiStore } from '@/state/uiStore';
 
@@ -21,13 +22,27 @@ function App() {
   const handleNewGame = () => {
     useGameStore.getState().resetGame();
     useUiStore.getState().resetUi();
+    // Sobrescreve qualquer save anterior na hora, para "CONTINUE" nunca
+    // apontar para o progresso de uma partida anterior caso o jogador saia
+    // antes de qualquer evento de progresso re-salvar sozinho.
+    saveGame();
+    setScreen('game');
+  };
+
+  const handleContinue = () => {
+    loadGame();
+    useUiStore.getState().resetUi();
     setScreen('game');
   };
 
   return (
     <div className={styles.app}>
       {screen === 'menu' ? (
-        <MainMenu onNewGame={handleNewGame} hasSave={false} />
+        <MainMenu
+          onNewGame={handleNewGame}
+          onContinue={handleContinue}
+          hasSave={hasSaveGame()}
+        />
       ) : hasReachedEnding ? (
         <EndingScreen onReturnToMenu={() => setScreen('menu')} />
       ) : (

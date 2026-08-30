@@ -2,15 +2,50 @@
 
 Jogo de exploração sci-fi para navegador. Você controla ECHO-7, um robô explorador enviado para investigar um planeta alienígena aparentemente abandonado — explorando, escaneando e reconstruindo aos poucos o mistério por trás de uma transmissão misteriosa.
 
-> 🚧 **Projeto em desenvolvimento inicial.** Ainda não há uma versão jogável publicada. Este README será expandido (com screenshots, vídeo e link para jogar) conforme o desenvolvimento avança — ver [🗺️ Roadmap](#️-roadmap).
+## 🎮 Play
+
+**[vagnerso.github.io/echo-7](https://vagnerso.github.io/echo-7/)**
+
+Roda direto no navegador, sem instalação. Requer teclado (sem suporte a touch/mobile nesta versão).
+
+**Controles:** `WASD`/setas para mover · `E` interagir · `Q` scanner · `I` inventário/upgrades/fragmentos.
+
+## 📸 Screenshots
+
+| Menu | Exploração |
+|---|---|
+| ![Menu principal](docs/screenshots/main-menu.png) | ![Explorando a Landing Zone](docs/screenshots/gameplay-landing-zone.png) |
+
+| Scanner | Inventário |
+|---|---|
+| ![Scanner detectando um objeto](docs/screenshots/scanner-detection.png) | ![Painel de inventário](docs/screenshots/inventory-panel.png) |
 
 ## 🧠 AI-Assisted Development
 
-Este projeto é usado deliberadamente como demonstração de **engenharia assistida por IA**, não como "vibe coding": design e arquitetura são definidos e aprovados antes de qualquer código, o desenvolvimento avança em fases pequenas e testáveis, e toda decisão técnica não óbvia é documentada com o porquê.
+Este projeto é usado deliberadamente como demonstração de **engenharia assistida por IA**, não como "vibe coding": design e arquitetura foram definidos e aprovados antes de qualquer código (Fase 0), o desenvolvimento avançou em dez fases pequenas e testáveis, e toda decisão técnica não óbvia foi documentada com o porquê — inclusive os bugs reais encontrados e corrigidos ao longo do caminho.
 
-- [`docs/AI_DEVELOPMENT.md`](docs/AI_DEVELOPMENT.md) — a metodologia usada (como IA e desenvolvedor dividem responsabilidades).
-- [`docs/DECISIONS.md`](docs/DECISIONS.md) — registro de decisões técnicas, com contexto, alternativas consideradas e motivo.
-- [`PROMPT MESTRE — ECHO-7_ O EXPLORADOR.md`](<PROMPT MESTRE — ECHO-7_ O EXPLORADOR.md>) — a especificação original do jogo (visão, mecânicas, narrativa, restrições).
+- [`docs/AI_DEVELOPMENT.md`](docs/AI_DEVELOPMENT.md) — a metodologia usada, com uma tabela de exemplos reais de onde a IA entrou (brainstorming, arquitetura, implementação, debugging, testes, refactoring, conteúdo, documentação).
+- [`docs/DECISIONS.md`](docs/DECISIONS.md) — registro de toda decisão técnica não óbvia, fase a fase, com contexto, alternativas consideradas e motivo.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — visão geral da arquitetura implementada.
+- [`PROMPT MESTRE — ECHO-7_ O EXPLORADOR.md`](<PROMPT MESTRE — ECHO-7_ O EXPLORADOR.md>) — a especificação original do jogo (visão, mecânicas, narrativa, restrições) que guiou todo o desenvolvimento.
+
+## 🏗️ Architecture
+
+```
+React (App.tsx)
+   |
+UI / HUD / Menus / Overlays        (components/)
+   |
+Game State                          (state/ - Zustand)
+   |
+Game Engine                         (engine/ - loop, input, câmera, partículas, áudio)
+   |
+Game Systems                        (systems/ - movimento, colisão, interação, scanner, puzzle, upgrades)
+   |
+World / Entities / Content          (world/, entities/, content/)
+```
+
+Nenhuma dessas camadas abaixo de `components/` importa React — é isso que torna a lógica de jogo testável sem DOM. Detalhes completos em [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## 🛠️ Tech Stack
 
@@ -21,6 +56,7 @@ Este projeto é usado deliberadamente como demonstração de **engenharia assist
 - CSS Modules
 - Vitest
 - oxlint + Prettier
+- Web Audio API (áudio sintetizado por código, sem arquivos de som)
 
 ## 🚀 Getting Started
 
@@ -35,22 +71,26 @@ npm run lint       # roda o lint (oxlint)
 npm run format     # formata o código (Prettier)
 ```
 
+## 🧪 Testing
+
+Testes ficam ao lado do código testado (`arquivo.ts` + `arquivo.test.ts`), priorizando lógica de jogo pura (`engine/`, `systems/`, `state/`) — 107 testes automatizados no total. Ver critérios de teste em [`docs/DECISIONS.md`](docs/DECISIONS.md).
+
 ## 📁 Project Structure
 
 ```
 src/
-  components/   # UI React (HUD, menus, overlays)
-  engine/       # game loop, input, câmera
-  systems/      # lógica de gameplay (movimento, colisão, energia, scanner, puzzles)
-  entities/     # definições de entidades do jogo
-  world/        # regiões e carregamento de mundo
-  content/      # dados estáticos (itens, fragmentos, puzzles, upgrades)
-  state/        # stores Zustand
-  save/         # persistência (localStorage), versionada
-  hooks/        # ponte entre React e a engine
+  components/    # UI React (HUD, menus, overlays, painéis)
+  engine/        # game loop, input, câmera, canvas, partículas, áudio - sem React
+  systems/       # lógica de gameplay pura (movimento, colisão, interação, scanner, puzzle, upgrades)
+  entities/      # tipos das principais entidades (Player, Discovery, InventoryItem, Puzzle, Upgrade, MemoryFragment)
+  world/         # modelo de região/tile/objeto e carregamento de mundo
+  content/       # dados estáticos do jogo (regiões, puzzles, upgrades, fragmentos)
+  state/         # stores Zustand (gameStore, uiStore)
+  save/          # persistência em localStorage, versionada
+  hooks/         # ponte entre React e a engine
 ```
 
-A estrutura completa está detalhada em [`docs/DECISIONS.md`](docs/DECISIONS.md); pastas acima são criadas conforme a fase correspondente do roadmap chega nelas.
+Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para o propósito de cada pasta em detalhe.
 
 ## 🗺️ Roadmap
 
@@ -61,11 +101,9 @@ A estrutura completa está detalhada em [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - [x] Fase 4 — Scanner
 - [x] Fase 5 — Inventory
 - [x] Fase 6 — Upgrades
-- [x] Fase 7 — Puzzles (sistema de sequência + Região 2/Ancient Ruins; Puzzle #2 fica com a Região 3 na Fase 8)
+- [x] Fase 7 — Puzzles (sistema de sequência + Região 2/Ancient Ruins)
 - [x] Fase 8 — Narrative (Memory Fragments, missão, Região 3/Signal Core, Puzzle #2, final da vertical slice)
 - [x] Fase 9 — Polish (partículas, transição de tela, áudio sintetizado)
-- [ ] Fase 10 — Release (build, GitHub Pages, documentação final) *(em andamento)*
+- [x] Fase 10 — Release (GitHub Pages, save/load, documentação final)
 
-## 🧪 Testing
-
-Testes ficam ao lado do código testado (`arquivo.ts` + `arquivo.test.ts`), priorizando lógica de jogo pura (`engine/`, `systems/`) — ver [`docs/DECISIONS.md`](docs/DECISIONS.md).
+A vertical slice está completa: dá para jogar do início (Landing Zone) até o final do primeiro arco narrativo (Signal Core), com progresso salvo automaticamente. Próximos passos possíveis: Região 4+ e continuação da história (o final termina com um gancho proposital), arte/sprites de verdade, controles mobile.

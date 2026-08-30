@@ -61,6 +61,19 @@ Dados narrativos e de balanceamento (itens, regiões, fragmentos de memória, pu
 | Aprovação de qualquer mudança de arquitetura | Desenvolvedor |
 | Direção de arte final | Desenvolvedor |
 
+## Onde a IA foi usada, com exemplos reais deste projeto
+
+| Categoria | Como apareceu neste projeto |
+|---|---|
+| **Brainstorming** | Fase 8: antes de escrever qualquer fragmento de memória, a IA propôs um esboço do arco narrativo (o que cada região revela, a natureza do Signal Core) para o desenvolvedor aprovar ou ajustar - incluindo o pedido explícito de fechar com um gancho de continuação, incorporado depois do esboço inicial. |
+| **Arquitetura** | A Fase 0 inteira (GDD, camadas, modelo de dados, riscos) foi produzida antes de qualquer código. Decisões estruturais continuaram surgindo depois: por exemplo, `WorldObject.kind` (um enum) virou flags de capacidade independentes (`interactable?`, `scannable?`...) na Fase 6, quando um segundo caso de uso mostrou que o enum não escalava. |
+| **Implementação** | As dez fases do roadmap, cada uma com sistemas isolados e testados antes de avançar para a próxima (movimento, colisão, scanner, puzzle, upgrades, narrativa, polish). |
+| **Debugging** | Um bug real foi encontrado em revisão própria antes de testar no navegador (Fase 6): a primeira versão da instalação automática de upgrades usava um snapshot único do inventário, o que permitiria que um único componente "pagasse" por dois upgrades que exigem 1 unidade cada. Corrigido reavaliando o estado a cada instalação. Outro exemplo (Fase 7): um ponto de retorno entre regiões foi projetado, sem querer, dentro de uma área que só é acessível com um upgrade específico - um softlock em potencial, pego relendo a posição contra a geometria da região antes de testar. |
+| **Testes** | 101 testes automatizados, escritos ao lado de cada sistema (`arquivo.ts` + `arquivo.test.ts`), priorizando lógica de jogo pura conforme a seção 20 do prompt mestre. |
+| **Refactoring** | Fase 6: o enum de tipo de objeto virou flags (acima). Fase 7: `getRegionObstacles` (só paredes) foi generalizado para `getObstaclesForTileType` quando o tile `hazard` precisou do mesmo tratamento, evitando duplicar a função inteira. |
+| **Conteúdo** | Rascunhos de texto (os seis fragmentos de memória, as descrições dos objetos escaneáveis) foram propostos pela IA e aprovados/ajustados pelo desenvolvedor antes de entrarem no jogo - nunca decididos unilateralmente, já que direção narrativa é explicitamente decisão do desenvolvedor (seção 27 do prompt mestre). |
+| **Documentação** | Os três documentos deste projeto (`AI_DEVELOPMENT.md`, `DECISIONS.md`, `ARCHITECTURE.md`) e o README foram escritos pela IA e atualizados a cada fase concluída, não só no final. |
+
 ## Convenções de código resultantes deste processo
 
 - TypeScript em todo o projeto, modo `strict`.
