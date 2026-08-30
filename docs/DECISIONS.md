@@ -527,3 +527,20 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 **Decisão:** `environment: 'node'`.
 
 **Motivo:** a lógica de jogo (`engine/`, `systems/`) não deve depender de DOM, por decisão de arquitetura da Fase 0. Usar `node` reforça esse isolamento — se algum sistema de gameplay algum dia "precisar" de DOM para passar num teste, isso é sinal de que ele está violando a separação entre lógica e UI. Quando chegarmos a testar componentes React (não lógica de jogo), adicionamos `jsdom` como dependência pontual.
+
+## Polish visual pós-release
+
+Com o MVP completo (Fases 0-10), o roadmap original não previa uma passada de acabamento visual — o próprio código marcava as formas do jogador e dos objetos como "placeholder até existir arte de verdade" (ver comentários históricos em `GameCanvas.tsx`). Esta seção cobre as decisões dessa passada, feita em fases pequenas (robô → cenário → UI → painel de comandos), cada uma com checkpoint antes de avançar para a próxima.
+
+### Robô continua 100% vetorial (Canvas API), sem sprites
+
+**Contexto:** o jogador via um simples quadrado ciano com um círculo indicando a direção. Para "parecer um robô de verdade" havia duas opções: (1) compor uma forma mais elaborada usando só a Canvas API, como já era feito para todo o resto do jogo; ou (2) introduzir um pipeline de assets (imagens/spritesheets), hoje inexistente no projeto.
+
+**Decisão:** opção 1. `renderPlayer` em `GameCanvas.tsx` agora desenha um chassi (retângulo arredondado com gradiente, via `ctx.roundRect`), pernas/esteiras com leve animação de passada, cabeça/lente com glow (`shadowBlur`) que se desloca na direção do `facing`, e uma antena com ponta pulsante. Nenhuma caixa de colisão foi alterada — a mudança é puramente de desenho, a `size` do `Player` continua a mesma.
+
+**Alternativas consideradas:** sprites desenhados/gerados externamente. Descartada por exigir uma fonte de arte externa (o assistente de IA usado neste projeto não gera imagens) e um pipeline de carregamento de assets que não existe hoje — escopo desproporcional ao pedido de "o robô parecer um robô", que a via vetorial já resolve.
+
+**Motivo:** mantém a arquitetura decidida na Fase 0 (zero dependências novas, tudo desenhado via Canvas 2D) e é consistente com o resto da cena, que já é 100% procedural.
+
+**Detalhe técnico:** a animação (passada, flutuação, pulso da antena) usa um acumulador de tempo (`animationTimeRef`, em ms) incrementado em `update(dt)` e passado ao `render`, com módulo de 100.000 para não perder precisão de ponto flutuante em sessões longas — o valor absoluto do tempo não importa, só a fase dos senos que dependem dele.
+

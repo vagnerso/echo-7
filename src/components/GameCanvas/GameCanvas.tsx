@@ -92,7 +92,15 @@ interface TransitionState {
   pendingExit: NonNullable<WorldObject['exit']> | null;
 }
 
-const PLAYER_COLOR = '#5ee6c8';
+const PLAYER_BODY_COLOR = '#5ee6c8';
+const PLAYER_BODY_LIGHT = '#a4f5e2';
+const PLAYER_BODY_DARK = '#2c7d6c';
+const PLAYER_OUTLINE_COLOR = '#0f2620';
+const PLAYER_LEG_COLOR = '#1d4a40';
+const PLAYER_LENS_COLOR = '#08090c';
+const PLAYER_LENS_GLOW = 'rgba(94, 230, 200, 0.9)';
+const PLAYER_ANTENNA_COLOR = 'rgba(216, 219, 226, 0.8)';
+const PLAYER_ANTENNA_TIP_COLOR = '#ffcf7a';
 const WALL_COLOR = 'rgba(94, 230, 200, 0.12)';
 const WALL_BORDER_COLOR = 'rgba(94, 230, 200, 0.4)';
 const HAZARD_COLOR = 'rgba(230, 120, 90, 0.18)';
@@ -115,29 +123,107 @@ function renderPlayer(
   screenPosition: Vector2,
   facing: Player['facing'],
   size: Vector2,
+  animationTime: number,
+  isMoving: boolean,
 ): void {
-  ctx.fillStyle = PLAYER_COLOR;
-  ctx.fillRect(
-    screenPosition.x - size.x / 2,
-    screenPosition.y - size.y / 2,
-    size.x,
-    size.y,
-  );
+  // Fase da passada quando andando; parado, usa um seno mais lento como
+  // flutuacao/respiracao sutil - deixa o robo "vivo" mesmo parado.
+  const walkPhase = animationTime / 130;
+  const hover = isMoving
+    ? Math.abs(Math.sin(walkPhase)) * 2
+    : Math.sin(animationTime / 500) * 1.2;
 
-  // Marcador simples indicando para onde o ECHO-7 esta olhando - placeholder
-  // ate existir sprite de verdade (nenhuma fase do MVP inclui arte final;
-  // ficaria para um pipeline de assets futuro, fora do escopo atual).
-  const markerOffset = size.x / 2 + 6;
-  const markerPosition: Vector2 = { ...screenPosition };
-  if (facing === 'up') markerPosition.y -= markerOffset;
-  if (facing === 'down') markerPosition.y += markerOffset;
-  if (facing === 'left') markerPosition.x -= markerOffset;
-  if (facing === 'right') markerPosition.x += markerOffset;
+  const centerX = screenPosition.x;
+  const centerY = screenPosition.y - hover;
+  const halfW = size.x / 2;
+  const halfH = size.y / 2;
 
-  ctx.fillStyle = '#0b0d12';
+  // Esteiras/pes: alternam verticalmente durante o movimento (passada);
+  // ficam simetricos e parados quando o robo esta parado.
+  const legSwing = isMoving ? Math.sin(walkPhase) * 3 : 0;
+  const legY = centerY + halfH - 3;
+  ctx.fillStyle = PLAYER_LEG_COLOR;
   ctx.beginPath();
-  ctx.arc(markerPosition.x, markerPosition.y, 4, 0, Math.PI * 2);
+  ctx.roundRect(centerX - halfW * 0.7 - 5, legY + legSwing, 10, 7, 2);
   ctx.fill();
+  ctx.beginPath();
+  ctx.roundRect(centerX + halfW * 0.7 - 5, legY - legSwing, 10, 7, 2);
+  ctx.fill();
+
+  // Chassi: retangulo arredondado com gradiente vertical para dar volume
+  // sem depender de sprite/imagem (decisao da Fase 0: sem pipeline de assets).
+  const bodyTop = centerY - halfH;
+  const bodyHeight = size.y * 0.85;
+  const bodyGradient = ctx.createLinearGradient(
+    0,
+    bodyTop,
+    0,
+    bodyTop + bodyHeight,
+  );
+  bodyGradient.addColorStop(0, PLAYER_BODY_LIGHT);
+  bodyGradient.addColorStop(1, PLAYER_BODY_COLOR);
+  ctx.fillStyle = bodyGradient;
+  ctx.strokeStyle = PLAYER_OUTLINE_COLOR;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(centerX - halfW, bodyTop, size.x, bodyHeight, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  // Selo/painel: um unico traco escuro, detalhe mecanico minimo.
+  ctx.strokeStyle = PLAYER_BODY_DARK;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(centerX - halfW + 4, bodyTop + bodyHeight * 0.65);
+  ctx.lineTo(centerX + halfW - 4, bodyTop + bodyHeight * 0.65);
+  ctx.stroke();
+
+  // Cabeca/lente desloca levemente na direcao "facing" - substitui o antigo
+  // marcador solto e deixa claro para onde o ECHO-7 esta olhando.
+  const lookOffset = 4;
+  const headOffset: Vector2 = { x: 0, y: 0 };
+  if (facing === 'up') headOffset.y = -lookOffset;
+  if (facing === 'down') headOffset.y = lookOffset;
+  if (facing === 'left') headOffset.x = -lookOffset;
+  if (facing === 'right') headOffset.x = lookOffset;
+
+  const headX = centerX + headOffset.x;
+  const headY = bodyTop + 2 + headOffset.y;
+
+  // Lente: nucleo escuro com glow ciano (shadowBlur) e um brilho pontual,
+  // para lembrar uma lente de camera/sensor em vez de um olho generico.
+  ctx.save();
+  ctx.shadowColor = PLAYER_LENS_GLOW;
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = PLAYER_LENS_COLOR;
+  ctx.beginPath();
+  ctx.arc(headX, headY, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.beginPath();
+  ctx.arc(headX - 1.5, headY - 1.5, 1.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Antena: assinatura visual de "robo explorador", com ponta pulsando.
+  const antennaTipY = bodyTop - 10;
+  ctx.strokeStyle = PLAYER_ANTENNA_COLOR;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(centerX, bodyTop);
+  ctx.lineTo(centerX, antennaTipY);
+  ctx.stroke();
+
+  const pulse = 0.5 + Math.sin(animationTime / 300) * 0.5;
+  ctx.save();
+  ctx.shadowColor = PLAYER_ANTENNA_TIP_COLOR;
+  ctx.shadowBlur = 4 + pulse * 4;
+  ctx.fillStyle = PLAYER_ANTENNA_TIP_COLOR;
+  ctx.beginPath();
+  ctx.arc(centerX, antennaTipY, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function renderTiles(
@@ -369,6 +455,11 @@ export function GameCanvas() {
   const puzzleProgressRef = useRef<Map<string, string[]>>(new Map());
   const particlesRef = useRef<Particle[]>([]);
   const footstepTimerRef = useRef<number>(FOOTSTEP_INTERVAL_MS);
+  // Acumulador de tempo so para animacao do robo (passada/flutuacao/pulso da
+  // antena) - modulo alto evita perda de precisao de ponto flutuante em
+  // sessoes longas, sem afetar a suavidade dos senos usados no render.
+  const animationTimeRef = useRef<number>(0);
+  const isMovingRef = useRef<boolean>(false);
   const transitionRef = useRef<TransitionState>({
     phase: 'idle',
     progress: 0,
@@ -496,6 +587,8 @@ export function GameCanvas() {
       const isMoving =
         Math.abs(player.velocity.x) > 0.001 ||
         Math.abs(player.velocity.y) > 0.001;
+      isMovingRef.current = isMoving;
+      animationTimeRef.current = (animationTimeRef.current + dt) % 100_000;
 
       if (isMoving) {
         footstepTimerRef.current += dt;
@@ -777,7 +870,14 @@ export function GameCanvas() {
         canvas.width,
         canvas.height,
       );
-      renderPlayer(ctx, screenPosition, player.facing, player.size);
+      renderPlayer(
+        ctx,
+        screenPosition,
+        player.facing,
+        player.size,
+        animationTimeRef.current,
+        isMovingRef.current,
+      );
 
       const transition = transitionRef.current;
       if (transition.phase !== 'idle') {
