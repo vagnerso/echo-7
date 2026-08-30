@@ -1,0 +1,66 @@
+.controls {
+  position: fixed;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+  /* Baixo de proposito: precisa ficar abaixo de modais como o InventoryPanel
+     (ver .backdrop em Inventory/InventoryPanel.module.css), senao os botoes
+     de toque aparecem por cima de uma tela que deveria cobrir tudo. */
+  z-index: 1;
+}
+
+/* So aparece em telas de toque (celular/tablet) - em desktop fica no DOM,
+   mas oculto; nenhuma deteccao de dispositivo em JS. */
+@media (pointer: coarse) {
+  .controls {
+    display: block;
+  }
+}
+
+.dpad {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: grid;
+  grid-template-areas:
+    '. up .'
+    'left . right'
+    '. down .';
+  grid-template-columns: repeat(3, 52px);
+  grid-template-rows: repeat(3, 52px);
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.dpadButton {
+  composes: button from '@/styles/hudPanel.module.css';
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  font-size: 1.25rem;
+  color: #5ee6c8;
+  touch-action: none;
+  user-select: none;
+}
+
+.actionButtons {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.actionButton {
+  composes: button from '@/styles/hudPanel.module.css';
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #5ee6c8;
+  touch-action: none;
+  user-select: none;
+}

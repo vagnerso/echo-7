@@ -9,6 +9,19 @@
   pointer-events: none;
 }
 
+/* Scanner (topo-esquerda) e Mission (topo-direita) disputam a mesma faixa
+   horizontal - em telas estreitas, ambos precisam encolher para nao se
+   sobrepor (ver MissionHUD.module.css). */
+@media (max-width: 480px) {
+  .panel {
+    top: 10px;
+    left: 10px;
+    min-width: 130px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+}
+
 .title {
   composes: title from '@/styles/hudPanel.module.css';
 }

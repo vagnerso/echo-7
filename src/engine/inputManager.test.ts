@@ -138,6 +138,37 @@ describe('InputManager', () => {
 
     expect(input.wasActionJustPressed('interact')).toBe(false);
   });
+
+  it('pressVirtual/releaseVirtual ativam e desativam uma acao, como uma tecla', () => {
+    expect(input.isActionPressed('moveUp')).toBe(false);
+
+    input.pressVirtual('moveUp');
+    expect(input.isActionPressed('moveUp')).toBe(true);
+    expect(input.wasActionJustPressed('moveUp')).toBe(true);
+
+    input.releaseVirtual('moveUp');
+    expect(input.isActionPressed('moveUp')).toBe(false);
+  });
+
+  it('pressVirtual nao reseta a borda de subida se a acao ja estava ativa por essa mesma fonte', () => {
+    input.pressVirtual('interact');
+    input.clearJustPressed();
+
+    input.pressVirtual('interact');
+
+    expect(input.wasActionJustPressed('interact')).toBe(false);
+  });
+
+  it('uma tecla real e o botao virtual da mesma acao nao se atrapalham (mesma logica de duas teclas)', () => {
+    target.dispatch('keydown', keyEvent('KeyW'));
+    input.pressVirtual('moveUp');
+
+    target.dispatch('keyup', keyEvent('KeyW'));
+    expect(input.isActionPressed('moveUp')).toBe(true);
+
+    input.releaseVirtual('moveUp');
+    expect(input.isActionPressed('moveUp')).toBe(false);
+  });
 });
 
 describe('formatKeyLabel', () => {

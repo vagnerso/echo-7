@@ -60,6 +60,25 @@ for (const [action, keys] of Object.entries(ACTION_TO_KEYS) as [
   }
 }
 
+// "Tecla" sintetica por acao, para controles de toque (TouchControls) - cada
+// botao virtual chama pressVirtual/releaseVirtual, que reaproveitam o mesmo
+// caminho de handleKeyDown/handleKeyUp de uma tecla de verdade (pressedKeys,
+// justPressedActions), em vez de precisar de um segundo mecanismo de estado
+// so para input por toque.
+const VIRTUAL_KEY_BY_ACTION: Record<GameAction, string> = Object.fromEntries(
+  (Object.keys(ACTION_TO_KEYS) as GameAction[]).map((action) => [
+    action,
+    `Virtual:${action}`,
+  ]),
+) as Record<GameAction, string>;
+
+for (const [action, virtualKey] of Object.entries(VIRTUAL_KEY_BY_ACTION) as [
+  GameAction,
+  string,
+][]) {
+  KEY_TO_ACTION.set(virtualKey, action);
+}
+
 export class InputManager {
   private readonly target: EventTargetLike;
   // Guarda as teclas cruas pressionadas, nao as acoes: se duas teclas
@@ -81,7 +100,10 @@ export class InputManager {
   }
 
   isActionPressed(action: GameAction): boolean {
-    return ACTION_TO_KEYS[action].some((key) => this.pressedKeys.has(key));
+    return (
+      ACTION_TO_KEYS[action].some((key) => this.pressedKeys.has(key)) ||
+      this.pressedKeys.has(VIRTUAL_KEY_BY_ACTION[action])
+    );
   }
 
   wasActionJustPressed(action: GameAction): boolean {
@@ -91,6 +113,16 @@ export class InputManager {
   /** Chamar uma vez ao final de cada passo fixo de simulacao, depois que todos os sistemas ja leram wasActionJustPressed. */
   clearJustPressed(): void {
     this.justPressedActions.clear();
+  }
+
+  /** Ativa uma acao por toque (D-pad/botoes virtuais) - mesmo efeito de segurar a tecla correspondente. */
+  pressVirtual(action: GameAction): void {
+    this.handleKeyDown({ code: VIRTUAL_KEY_BY_ACTION[action] });
+  }
+
+  /** Solta uma acao ativada por toque. */
+  releaseVirtual(action: GameAction): void {
+    this.handleKeyUp({ code: VIRTUAL_KEY_BY_ACTION[action] });
   }
 
   destroy(): void {

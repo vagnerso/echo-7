@@ -673,3 +673,51 @@ Pedido do desenvolvedor: o jogador poder escolher a cor do robô entre ~5 opçõ
 **Decisão:** `.button:hover:not(:disabled)` virou `.button:hover:not(:disabled):not([data-active])` - a regra compartilhada agora explicitamente não se aplica a um botão marcado como `[data-active]`, não importa a especificidade de quem definiu esse estado.
 
 **Motivo:** corrigir na classe compartilhada, não em cada consumidor - "hover não deve mascarar um estado de seleção ativa" é uma regra de UI genérica o suficiente para viver no componente de botão comum, e resolve o problema para qualquer uso futuro de `[data-active]` de uma vez, não só para o seletor de cor.
+
+## v2.0 — Fase A: Mobile
+
+Pedido do desenvolvedor: o jogo funcionar em telas de toque. Plano completo (as 3 frentes da v2.0) ficou registrado antes de começar; aqui só a fase de mobile, decidida com o desenvolvedor como D-pad + botões virtuais (não "tocar para andar").
+
+### `InputManager` ganha `pressVirtual`/`releaseVirtual`, sem um segundo mecanismo de input
+
+**Contexto:** todo o resto do jogo (`systems/`, `GameCanvas.tsx`) já consumia input só via `isActionPressed`/`wasActionJustPressed` do `InputManager` - nunca lia teclas diretamente. Isso significava que qualquer fonte nova de input (toque) só precisava alimentar o mesmo `InputManager`, não criar um caminho paralelo.
+
+**Decisão:** cada `GameAction` ganhou uma "tecla" sintética reservada (`Virtual:moveUp`, etc., geradas a partir das próprias chaves de `ACTION_TO_KEYS` - nunca hardcoded uma a uma) somada ao mesmo `KEY_TO_ACTION` já usado para teclado. Dois métodos novos, `pressVirtual(action)`/`releaseVirtual(action)`, só chamam os `handleKeyDown`/`handleKeyUp` privados já existentes com essa tecla sintética - reaproveitando 100% da lógica de `pressedKeys`/`justPressedActions` (inclusive o caso de duas fontes ativando a mesma ação ao mesmo tempo, já tratado desde a Fase 1 para teclas duplicadas como `KeyW`/`ArrowUp`).
+
+**Alternativa considerada:** uma classe `TouchInputManager` separada, combinada ao `InputManager` de teclado via um "OR" nos consumidores (`isActionPressed = keyboard.isActionPressed(a) || touch.isActionPressed(a)`) - descartada por introduzir um segundo objeto com seu próprio estado interno e exigir que `GameCanvas` e `movementSystem` conhecessem as duas fontes, quando o objetivo é justamente esconder essa diferença deles.
+
+**Bug encontrado ao escrever o teste:** `isActionPressed` conferia só as teclas reais listadas em `ACTION_TO_KEYS[action]`, nunca a tecla virtual - `pressVirtual` marcava `pressedKeys` corretamente, mas a ação nunca aparecia como pressionada. Corrigido conferindo também `VIRTUAL_KEY_BY_ACTION[action]`.
+
+### `TouchControls` vive dentro do `GameCanvas`, não como irmão em `App.tsx`
+
+**Decisão:** o componente novo (`components/TouchControls/`) recebe `inputRef` (o mesmo `useRef<InputManager|null>` que o `GameCanvas` já mantém internamente) e é renderizado dentro do próprio `<div>` retornado por `GameCanvas`, não ao lado dele em `App.tsx` (como `ScannerOverlay`/`MissionHUD`/etc, que só leem stores).
+
+**Motivo:** evita duas alternativas piores - criar uma segunda instância de `InputManager` (duas fontes de verdade sobre teclas pressionadas) ou promover a instância única a um singleton em escopo de módulo (que chamaria `window.addEventListener` na importação do arquivo, quebrando os testes de `inputManager.ts`, que rodam em `environment: 'node'` sem `window` - a mesma categoria de armadilha já documentada para `document`/canvas na Fase 2 do polish visual).
+
+### Visibilidade por `@media (pointer: coarse)`, sem detecção de dispositivo em JS
+
+**Decisão:** `TouchControls` fica sempre no DOM (`display: none` por padrão), visível só via `@media (pointer: coarse)` no CSS. Mesma media query esconde o `ControlsHint` (HUD de teclado) - os dois nunca aparecem juntos, e os próprios botões do D-pad já servem de legenda visual em telas de toque.
+
+**Motivo:** `pointer: coarse` é a forma padrão (sem JS, sem risco de falso-negativo) de perguntar "o dispositivo primário de apontamento é impreciso o bastante para precisar de alvos de toque maiores" - mais confiável e mais simples que checar `'ontouchstart' in window` (que dá falso-positivo em alguns notebooks touch-screen híbridos de qualquer forma, então o comportamento nesse caso de borda é o mesmo dos dois jeitos).
+
+### Layout responsivo: breakpoints por painel, não um sistema de grid geral
+
+**Contexto:** nenhum `@media` existia no projeto antes desta fase - todos os painéis de HUD usavam `px` fixos.
+
+**Decisão:** um `@media (max-width: 480px)` por `.module.css` de painel (Scanner, Mission, Controls, Inventory), reduzindo padding/font-size/min-width individualmente - não uma abstração de breakpoint compartilhada (variável CSS, mixin, etc.).
+
+**Motivo:** só 4-5 painéis existem e cada um tem métricas próprias (larguras mínimas diferentes, alguns `min-width`, outros `max-width`) - uma abstração compartilhada economizaria poucas linhas hoje e acopraria painéis que não precisam mudar em conjunto. Repetir o breakpoint em cada arquivo é mais simples de ler isoladamente (mesmo raciocínio já usado para não criar uma paleta genérica de zoom de câmera antes de precisar de uma).
+
+**Achado durante o teste visual:** o `FragmentRevealOverlay` (revelação de fragmento, rodapé-centro) e o `InventoryPanel` (`min-width: 280px` fixo, que pode vencer `max-width: 90vw` num viewport bem estreito) precisaram de ajustes específicos - o primeiro sobe (`bottom: 90px` só em `pointer: coarse`) para não ficar atrás do D-pad/botões de ação; o segundo troca `min-width` por `width: 92vw` abaixo de 480px.
+
+### `z-index`: primeiro uso no projeto, `TouchControls` fica abaixo de modais
+
+**Decisão:** `.controls` (TouchControls) recebeu `z-index: 1`; `.backdrop` (InventoryPanel) recebeu `z-index: 2` - garantindo que um modal sempre cubra os botões de toque, mesmo que ambos "existam" na tela ao mesmo tempo.
+
+**Verificação:** confirmado via `document.elementFromPoint` (não só inspeção visual) que, com o inventário aberto, tocar onde um botão do D-pad estaria realmente aciona o backdrop, não o botão - a sobreposição visual remanescente (bordas dos botões ainda fracamente visíveis através do backdrop semi-transparente) é cosmética e consistente com o comportamento já existente de outros painéis de HUD atrás do mesmo modal (o backdrop sempre foi semi-transparente, não opaco).
+
+### Zoom de câmera: adiado de propósito
+
+**Decisão:** não implementar zoom de câmera para telas estreitas nesta fase, mesmo a câmera sendo 1:1 pixel (sem zoom) desde a Fase 0.
+
+**Motivo:** registrado no plano da v2.0 como algo a avaliar só depois de jogar de verdade num viewport móvel com D-pad e HUD responsivo já prontos - adicionar um mecanismo de zoom (e os testes que ele exigiria) para um problema que pode não incomodar na prática seria escopo especulativo.

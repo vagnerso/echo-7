@@ -9,6 +9,25 @@
   pointer-events: none;
 }
 
+/* Janela desktop estreita: encolhe, mas continua visivel. */
+@media (max-width: 480px) {
+  .panel {
+    min-width: 130px;
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+}
+
+/* Tela de toque: some de vez. Os proprios botoes do TouchControls (mesmo
+   canto inferior-esquerdo, ver components/TouchControls/) ja funcionam como
+   legenda visual - manter os dois juntos poluiria a tela e disputaria o
+   mesmo espaco. */
+@media (pointer: coarse) {
+  .panel {
+    display: none;
+  }
+}
+
 .title {
   composes: title from '@/styles/hudPanel.module.css';
   font-size: 12px;

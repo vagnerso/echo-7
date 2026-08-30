@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 
+import { TouchControls } from '@/components/TouchControls/TouchControls';
 import { MEMORY_FRAGMENTS } from '@/content/fragments';
 import { PUZZLES } from '@/content/puzzles';
 import { REGIONS } from '@/content/regions';
@@ -1110,6 +1111,7 @@ export function GameCanvas() {
   return (
     <div ref={containerRef} className={styles.container}>
       <canvas ref={canvasRef} className={styles.canvas} />
+      <TouchControls inputRef={inputRef} />
     </div>
   );
 }

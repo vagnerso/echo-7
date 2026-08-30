@@ -9,6 +9,16 @@
   pointer-events: none;
 }
 
+/* Em tela de toque, o D-pad/botoes de acao (TouchControls) ocupam os dois
+   cantos do rodape - sobe o painel para nao se sobrepor a eles, e estreita
+   um pouco para nao alcancar os cantos. */
+@media (pointer: coarse) {
+  .panel {
+    bottom: 90px;
+    width: min(420px, 80vw);
+  }
+}
+
 .title {
   composes: title from '@/styles/hudPanel.module.css';
 }
