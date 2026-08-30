@@ -18,6 +18,11 @@ export type ObjectiveKey =
   | 'findWayToSignalCore'
   | 'approachCore';
 
+// Chaves das opcoes de cor do robo (Settings). Os valores de cor em si
+// (hex) nao moram aqui - vem de content/robotColors.ts, que nao varia por
+// idioma; aqui so o nome de exibicao de cada opcao.
+export type RobotColorKey = 'cyan' | 'amber' | 'rose' | 'green' | 'azure';
+
 export interface UpgradeText {
   name: string;
   description: string;
@@ -85,7 +90,9 @@ export interface Translations {
   settings: {
     title: string;
     languageLabel: string;
+    robotColorLabel: string;
     back: string;
+    robotColors: Record<RobotColorKey, string>;
   };
   objectives: Record<ObjectiveKey, string>;
   /** Nome de exibicao de um item/componente, indexado por InventoryItem.id. */

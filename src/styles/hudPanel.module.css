@@ -69,7 +69,15 @@
     box-shadow 0.15s;
 }
 
-.button:hover:not(:disabled) {
+/*
+ * :not([data-active]) - convencao usada por botoes de selecao (ex:
+ * SettingsScreen): passar o mouse sobre a opcao JA selecionada nao deve
+ * apagar visualmente o destaque de "ativo" com a cor de hover. Sem isso, o
+ * :hover (3 classes/pseudo-classes de especificidade) vence o estado
+ * [data-active] de quem usa essa classe (2), mesmo quando a cor de active
+ * e diferente da de hover.
+ */
+.button:hover:not(:disabled):not([data-active]) {
   border-color: #5ee6c8;
   color: #5ee6c8;
   box-shadow: 0 0 12px rgba(94, 230, 200, 0.25);

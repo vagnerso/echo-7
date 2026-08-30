@@ -8,12 +8,18 @@ import { useSettingsStore } from './settingsStore';
 // exigiria mockar localStorage antes do import para testar aqui tambem.
 describe('settingsStore', () => {
   beforeEach(() => {
-    useSettingsStore.setState({ locale: 'en' });
+    useSettingsStore.setState({ locale: 'en', robotColor: 'cyan' });
   });
 
   it('setLocale atualiza o idioma atual', () => {
     useSettingsStore.getState().setLocale('pt-BR');
 
     expect(useSettingsStore.getState().locale).toBe('pt-BR');
+  });
+
+  it('setRobotColor atualiza a cor do robo atual', () => {
+    useSettingsStore.getState().setRobotColor('amber');
+
+    expect(useSettingsStore.getState().robotColor).toBe('amber');
   });
 });

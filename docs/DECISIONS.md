@@ -631,3 +631,45 @@ Pedido do desenvolvedor: o jogo passa a suportar dois idiomas (Inglês, padrão;
 **Decisão:** todos os testes que construíam `InventoryItem`/`Upgrade`/`MemoryFragment`/`Discovery`/`ScanInfo` com um campo de texto (`name`, `label`, `text`, etc.) tiveram esse campo removido do fixture, em vez de deixado ali sem uso.
 
 **Motivo:** com os tipos atualizados, manter esses campos nos testes teria sido um erro de compilação (excess property check do TypeScript em literais de objeto) - a correção "obrigatória" coincidiu com uma simplificação real dos fixtures de teste (menos campos para configurar em cada um).
+
+## Cor do robô customizável (Settings)
+
+Pedido do desenvolvedor: o jogador poder escolher a cor do robô entre ~5 opções, em Settings, sem conflitar com o cenário.
+
+### Paleta por cor num `content/robotColors.ts` novo, não dentro de `GameCanvas.tsx`
+
+**Contexto:** as paletas de fundo por região (`REGION_GROUND_PALETTES`) vivem dentro de `GameCanvas.tsx` porque só são usadas ali. A paleta de cor do robô precisa ser lida em dois lugares: pela renderização (`GameCanvas.tsx`, para desenhar) e pela tela de Settings (`SettingsScreen.tsx`, para mostrar as amostras de cor clicáveis).
+
+**Decisão:** `content/robotColors.ts` novo (mesmo padrão de `content/regions.ts`, `upgrades.ts`, etc. - dado estático do jogo), exportando `ROBOT_COLOR_PALETTES` (hex de cada cor) e `ROBOT_COLOR_KEYS` (ordem de exibição). As chaves (`RobotColorKey` - `'cyan' | 'amber' | 'rose' | 'green' | 'azure'`) moram em `src/i18n` (mesmo lugar de `ObjectiveKey`), porque cada uma precisa de um nome traduzido em Settings (`t.settings.robotColors[key]`) - mas os valores hex em si **não** moram no dicionário, já que cor não varia por idioma.
+
+**Motivo:** separa claramente três responsabilidades que poderiam ter sido misturadas numa só: *quais cores existem e seus valores hex* (`content/robotColors.ts`, dado visual), *como cada uma se chama em cada idioma* (`i18n`, texto), e *qual está selecionada agora* (`settingsStore`, estado). Nenhuma dependeria de reimportar de dentro do componente de Canvas para a tela de UI (ou vice-versa) se tivesse ficado tudo junto em `GameCanvas.tsx`.
+
+### Só chassi/pernas mudam de cor - sensor e antena ficam fixos
+
+**Decisão:** `renderPlayer` passou a receber um parâmetro `palette: RobotPalette` (`body`/`light`/`dark`/`outline`/`leg`) usado só no chassi e nas pernas. A lente (`PLAYER_LENS_COLOR`/`PLAYER_LENS_GLOW`) e a antena (`PLAYER_ANTENNA_COLOR`/`PLAYER_ANTENNA_TIP_COLOR`) continuam constantes fixas, iguais em todas as cores.
+
+**Motivo:** o "sensor" ciano é a assinatura visual do ECHO-7 (referência comum em ficção científica: o robô pode mudar de cor de pintura, mas o "olho" mantém sua identidade) - variar tudo tornaria as 5 opções mais uma questão de "5 robôs diferentes" do que "5 pinturas do mesmo robô". `cyan` como cor padrão (`DEFAULT_ROBOT_COLOR`) usa exatamente os mesmos valores hex da Fase 1 - quem nunca abrir Settings não percebe nenhuma mudança.
+
+### 5 cores escolhidas evitando as paletas de fundo já existentes
+
+**Decisão:** ciano (padrão), âmbar, rosa, verde e azul - evitando roxo (paleta de fundo da Landing Zone e cor de `SEALED`/`SWITCH`) e tons muito próximos do dourado/musgo (Ancient Ruins).
+
+**Motivo:** o jogo já usa boa parte do espectro de cor para sinalizar coisas diferentes (paredes, hazards, interagíveis, coletáveis, fragmentos de memória, etc. - ver constantes no topo de `GameCanvas.tsx`) e cada região tem sua própria paleta de fundo (Fase 2 do polish visual). Escolher tons claramente distintos entre si e das cores de fundo evita que o robô "suma" visualmente contra o cenário ou seja confundido com um marcador do mapa. Sobreposição perfeita de zero seria impossível dado quantas cores já têm significado no jogo; a barra usada foi "razoavelmente distinto", não "matematicamente único".
+
+### Preferência persiste e sobrevive a formato antigo de `Settings` (sem migração de versão)
+
+**Decisão:** `robotColor` foi adicionado a `Settings`/`SettingsData` sem incrementar `SETTINGS_VERSION`. `loadSettings` usa `data.robotColor ?? DEFAULT_ROBOT_COLOR` para preencher o campo que não existia num arquivo salvo antes desta mudança (Fase A só tinha `locale`).
+
+**Alternativa considerada:** incrementar `SETTINGS_VERSION` para 2 e invalidar preferências antigas (mesmo mecanismo usado em `saveGame.ts` para o save de progresso) - descartada porque, ao contrário do save de progresso (onde um formato incompatível vira "começa um jogo novo", uma perda aceitável), aqui invalidar o arquivo inteiro faria o jogador perder o **idioma** que já tinha escolhido só porque um campo novo e independente foi adicionado - pior experiência do que simplesmente preencher o campo que falta com o padrão.
+
+**Motivo:** campo aditivo e opcional-na-migração, não uma mudança de formato incompatível - o padrão de fallback por campo é mais amigável aqui do que o padrão de invalidação total já usado no save de progresso.
+
+### Bug encontrado e corrigido: `:hover` do botão compartilhado escondia o estado `[data-active]`
+
+**Contexto:** ao testar visualmente o seletor de cor, a amostra selecionada não mostrava nenhum destaque enquanto o mouse estava sobre ela (o que acontece sempre logo após o clique, inclusive em teste automatizado).
+
+**Causa raiz:** `.button:hover:not(:disabled)` (`src/styles/hudPanel.module.css`, compartilhado desde a Fase 3 do polish visual) tem especificidade (0,3,0) - maior que `.swatchButton[data-active]` (0,2,0) definida em `SettingsScreen.module.css`. Passar o mouse sobre a amostra já selecionada fazia o hover (ciano) vencer o destaque de "selecionada" (branco/glow da própria cor), mascarando visualmente a seleção. O mesmo bug já existia desde a Fase 3 no seletor de idioma, mas era invisível ali porque a cor de hover e a cor de "ativo" do idioma são coincidentemente idênticas (`#5ee6c8`).
+
+**Decisão:** `.button:hover:not(:disabled)` virou `.button:hover:not(:disabled):not([data-active])` - a regra compartilhada agora explicitamente não se aplica a um botão marcado como `[data-active]`, não importa a especificidade de quem definiu esse estado.
+
+**Motivo:** corrigir na classe compartilhada, não em cada consumidor - "hover não deve mascarar um estado de seleção ativa" é uma regra de UI genérica o suficiente para viver no componente de botão comum, e resolve o problema para qualquer uso futuro de `[data-active]` de uma vez, não só para o seletor de cor.

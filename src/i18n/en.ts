@@ -57,7 +57,15 @@ export const en: Translations = {
   settings: {
     title: 'SETTINGS',
     languageLabel: 'LANGUAGE',
+    robotColorLabel: 'ROBOT COLOR',
     back: 'BACK',
+    robotColors: {
+      cyan: 'Cyan',
+      amber: 'Amber',
+      rose: 'Rose',
+      green: 'Green',
+      azure: 'Azure',
+    },
   },
   objectives: {
     exploreLandingZone: 'Explore the Landing Zone.',

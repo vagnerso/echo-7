@@ -4,6 +4,10 @@ import { MEMORY_FRAGMENTS } from '@/content/fragments';
 import { PUZZLES } from '@/content/puzzles';
 import { REGIONS } from '@/content/regions';
 import {
+  type RobotPalette,
+  ROBOT_COLOR_PALETTES,
+} from '@/content/robotColors';
+import {
   playFootstepSound,
   playInteractSound,
   playPickupSound,
@@ -37,8 +41,10 @@ import {
   findNearestScannable,
 } from '@/systems/scannerSystem';
 import { findInstallableUpgrades } from '@/systems/upgradeSystem';
+import { DEFAULT_ROBOT_COLOR } from '@/i18n';
 import { saveGame } from '@/save/saveGame';
 import { useGameStore } from '@/state/gameStore';
+import { useSettingsStore } from '@/state/settingsStore';
 import { useUiStore } from '@/state/uiStore';
 import type { Region, WorldObject } from '@/world/region';
 import {
@@ -93,11 +99,9 @@ interface TransitionState {
   pendingExit: NonNullable<WorldObject['exit']> | null;
 }
 
-const PLAYER_BODY_COLOR = '#5ee6c8';
-const PLAYER_BODY_LIGHT = '#a4f5e2';
-const PLAYER_BODY_DARK = '#2c7d6c';
-const PLAYER_OUTLINE_COLOR = '#0f2620';
-const PLAYER_LEG_COLOR = '#1d4a40';
+// Chassi/pernas variam com a cor escolhida em Settings (content/robotColors.ts,
+// RobotPalette) - so o sensor (lente/glow) e a antena ficam fixos abaixo,
+// como "identidade" do ECHO-7 independente da cor.
 const PLAYER_LENS_COLOR = '#08090c';
 const PLAYER_LENS_GLOW = 'rgba(94, 230, 200, 0.9)';
 const PLAYER_ANTENNA_COLOR = 'rgba(216, 219, 226, 0.8)';
@@ -289,6 +293,7 @@ function renderPlayer(
   size: Vector2,
   animationTime: number,
   isMoving: boolean,
+  palette: RobotPalette,
 ): void {
   // Fase da passada quando andando; parado, usa um seno mais lento como
   // flutuacao/respiracao sutil - deixa o robo "vivo" mesmo parado.
@@ -306,7 +311,7 @@ function renderPlayer(
   // ficam simetricos e parados quando o robo esta parado.
   const legSwing = isMoving ? Math.sin(walkPhase) * 3 : 0;
   const legY = centerY + halfH - 3;
-  ctx.fillStyle = PLAYER_LEG_COLOR;
+  ctx.fillStyle = palette.leg;
   ctx.beginPath();
   ctx.roundRect(centerX - halfW * 0.7 - 5, legY + legSwing, 10, 7, 2);
   ctx.fill();
@@ -324,10 +329,10 @@ function renderPlayer(
     0,
     bodyTop + bodyHeight,
   );
-  bodyGradient.addColorStop(0, PLAYER_BODY_LIGHT);
-  bodyGradient.addColorStop(1, PLAYER_BODY_COLOR);
+  bodyGradient.addColorStop(0, palette.light);
+  bodyGradient.addColorStop(1, palette.body);
   ctx.fillStyle = bodyGradient;
-  ctx.strokeStyle = PLAYER_OUTLINE_COLOR;
+  ctx.strokeStyle = palette.outline;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.roundRect(centerX - halfW, bodyTop, size.x, bodyHeight, 6);
@@ -335,7 +340,7 @@ function renderPlayer(
   ctx.stroke();
 
   // Selo/painel: um unico traco escuro, detalhe mecanico minimo.
-  ctx.strokeStyle = PLAYER_BODY_DARK;
+  ctx.strokeStyle = palette.dark;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(centerX - halfW + 4, bodyTop + bodyHeight * 0.65);
@@ -1076,6 +1081,10 @@ export function GameCanvas() {
         canvas.width,
         canvas.height,
       );
+      const robotColor = useSettingsStore.getState().robotColor;
+      const robotPalette =
+        ROBOT_COLOR_PALETTES[robotColor] ??
+        ROBOT_COLOR_PALETTES[DEFAULT_ROBOT_COLOR];
       renderPlayer(
         ctx,
         screenPosition,
@@ -1083,6 +1092,7 @@ export function GameCanvas() {
         player.size,
         animationTimeRef.current,
         isMovingRef.current,
+        robotPalette,
       );
 
       const transition = transitionRef.current;

@@ -47,6 +47,20 @@
   box-shadow: 0 0 12px rgba(94, 230, 200, 0.25);
 }
 
+.swatchButton {
+  composes: button from '@/styles/hudPanel.module.css';
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  background: var(--swatch-color);
+  border-color: rgba(216, 219, 226, 0.3);
+}
+
+.swatchButton[data-active] {
+  border-color: #ffffff;
+  box-shadow: 0 0 12px var(--swatch-color);
+}
+
 .backButton {
   composes: button from '@/styles/hudPanel.module.css';
   margin-top: 1rem;

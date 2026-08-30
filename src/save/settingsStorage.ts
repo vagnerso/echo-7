@@ -1,4 +1,4 @@
-import type { Locale } from '@/i18n';
+import { DEFAULT_ROBOT_COLOR, type Locale, type RobotColorKey } from '@/i18n';
 
 import type { StorageLike } from './saveGame';
 
@@ -6,12 +6,13 @@ const SETTINGS_KEY = 'echo7-settings';
 const SETTINGS_VERSION = 1;
 
 /**
- * Preferencias do dispositivo/jogador (idioma, futuramente cor do robo) -
- * separadas do save de progresso (saveGame.ts) de proposito: nao devem ser
- * apagadas por NEW GAME nem fazer parte do versionamento de progresso.
+ * Preferencias do dispositivo/jogador (idioma, cor do robo) - separadas do
+ * save de progresso (saveGame.ts) de proposito: nao devem ser apagadas por
+ * NEW GAME nem fazer parte do versionamento de progresso.
  */
 export interface Settings {
   locale: Locale;
+  robotColor: RobotColorKey;
 }
 
 interface SettingsData extends Settings {
@@ -51,5 +52,11 @@ export function loadSettings(
 
   if (data.version !== SETTINGS_VERSION) return null;
 
-  return { locale: data.locale };
+  // robotColor e mais novo que a versao 1 do formato - uma preferencia
+  // salva antes dele existir simplesmente nao o traz. Cai no padrao em vez
+  // de invalidar o resto do arquivo (o idioma salvo continua valendo).
+  return {
+    locale: data.locale,
+    robotColor: data.robotColor ?? DEFAULT_ROBOT_COLOR,
+  };
 }

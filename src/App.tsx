@@ -45,7 +45,7 @@ function App() {
     // aqui em App.tsx porque a preferencia deve valer ja no MainMenu, antes
     // de qualquer partida comecar.
     return useSettingsStore.subscribe((state) =>
-      saveSettings({ locale: state.locale }),
+      saveSettings({ locale: state.locale, robotColor: state.robotColor }),
     );
   }, []);
 

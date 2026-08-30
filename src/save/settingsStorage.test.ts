@@ -25,11 +25,21 @@ describe('saveSettings/loadSettings', () => {
 
   it('salva e recarrega as preferencias corretamente', () => {
     const storage = createFakeStorage();
-    const settings: Settings = { locale: 'pt-BR' };
+    const settings: Settings = { locale: 'pt-BR', robotColor: 'amber' };
 
     saveSettings(settings, storage);
 
     expect(loadSettings(storage)).toEqual(settings);
+  });
+
+  it('usa a cor padrao quando o arquivo salvo e de antes de robotColor existir', () => {
+    const storage = createFakeStorage();
+    storage.setItem(
+      'echo7-settings',
+      JSON.stringify({ version: 1, locale: 'en' }),
+    );
+
+    expect(loadSettings(storage)).toEqual({ locale: 'en', robotColor: 'cyan' });
   });
 
   it('retorna null para um formato de versao incompativel', () => {
@@ -47,7 +57,9 @@ describe('saveSettings/loadSettings', () => {
   });
 
   it('funcoes sem storage disponivel nao lancam excecao', () => {
-    expect(() => saveSettings({ locale: 'en' }, null)).not.toThrow();
+    expect(() =>
+      saveSettings({ locale: 'en', robotColor: 'cyan' }, null),
+    ).not.toThrow();
     expect(loadSettings(null)).toBeNull();
   });
 });

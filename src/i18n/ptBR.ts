@@ -59,7 +59,15 @@ export const ptBR: Translations = {
   settings: {
     title: 'CONFIGURAÇÕES',
     languageLabel: 'IDIOMA',
+    robotColorLabel: 'COR DO ROBÔ',
     back: 'VOLTAR',
+    robotColors: {
+      cyan: 'Ciano',
+      amber: 'Âmbar',
+      rose: 'Rosa',
+      green: 'Verde',
+      azure: 'Azul',
+    },
   },
   objectives: {
     exploreLandingZone: 'Explore a Zona de Pouso.',
