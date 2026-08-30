@@ -564,3 +564,17 @@ Com o MVP completo (Fases 0-10), o roadmap original não previa uma passada de a
 
 **Motivo:** precisa parecer aleatório mas **não pode mudar a cada frame** — usar `Math.random()` diretamente no `render` faria o agrupamento "tremer" visualmente a cada redesenho. Um hash do id é determinístico (mesmo objeto sempre gera o mesmo padrão) e não exige guardar estado extra por objeto.
 
+### CSS compartilhado entre painéis via `composes` (CSS Modules), nova pasta `src/styles/`
+
+**Contexto:** os 6 componentes de UI/HUD (Mission, Scanner, Inventory, MemoryFragment, Ending, MainMenu) repetiam manualmente o mesmo bloco de CSS para o visual de "computador de bordo" (fundo translúcido, borda ciano, fonte monoespaçada) - confirmado com o desenvolvedor antes de adotar, por ser uma convenção nova de organização de arquivos (regra do projeto: convenções novas exigem confirmação explícita, não são decididas sozinhas).
+
+**Decisão:** criado `src/styles/hudPanel.module.css` com três classes-base (`.panel`, `.title`, `.button`) que os módulos de cada componente reusam via `composes: <classe> from '@/styles/hudPanel.module.css'` (recurso nativo de CSS Modules - resolvido pelo Vite tanto em dev quanto no build de produção, confirmado gerando o bundle e inspecionando o CSS final). Cada componente continua com seu próprio `.module.css` para layout/posicionamento específico (`position`, `padding`, `top/left`, etc.) - só o *look* do painel foi centralizado.
+
+**Alternativas consideradas:**
+1. Duplicar o novo CSS em cada um dos 6 arquivos - rejeitada explicitamente pelo desenvolvedor: qualquer ajuste futuro no visual do painel exigiria editar 6 lugares em vez de 1.
+2. Uma lib de CSS-in-JS ou Tailwind para compartilhar estilos - fora de cogitação, já que CSS Modules foi decisão de arquitetura da Fase 0 justamente para manter controle fino sem dependência nova.
+
+**Motivo:** `composes` é a forma idiomática de compartilhar estilo entre CSS Modules sem sair do que já foi decidido (sem pré-processador, sem lib nova) - é conceitualmente parecido com um "mixin", mas resolvido pelo bundler na composição de classes, não por duplicação de regras.
+
+**O que mudou visualmente:** cantos cortados (`clip-path`, no lugar de bordas retas) para reforçar a estética angulosa já pretendida; glow externo via `filter: drop-shadow` (acompanha o contorno recortado, ao contrário de `box-shadow`, que iluminaria como um retângulo por baixo de um painel com cantos cortados); textura sutil de scanline (`repeating-linear-gradient` em baixa opacidade) simulando uma tela CRT; título com leve `text-shadow` para todos os cabeçalhos de painel. Botões (`MainMenu`, `EndingScreen`) passaram a usar a mesma classe `.button` compartilhada, com cantos cortados e glow no hover.
+

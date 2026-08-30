@@ -31,25 +31,6 @@
   width: 220px;
 }
 
-.actions button {
-  padding: 0.75rem 1rem;
-  background: transparent;
-  border: 1px solid #3a4150;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  cursor: pointer;
-  transition:
-    border-color 0.15s,
-    color 0.15s;
-}
-
-.actions button:hover:not(:disabled) {
-  border-color: #5ee6c8;
-  color: #5ee6c8;
-}
-
-.actions button:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+.button {
+  composes: button from '@/styles/hudPanel.module.css';
 }

@@ -1,0 +1,81 @@
+/*
+ * Estilo-base compartilhado da interface "computador de bordo" (ver secao 13
+ * do prompt mestre). Componentes de HUD/painel compoem estas classes via
+ * `composes` (recurso nativo de CSS Modules) em vez de repetir o mesmo bloco
+ * de fundo/borda/glow em cada .module.css - uma unica fonte de verdade para
+ * o visual do painel.
+ */
+
+.panel {
+  /* Duas camadas de background: linhas finas (scanline sutil, efeito de tela
+     de CRT) sobre o preenchimento solido translucido. */
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.025) 0,
+      rgba(255, 255, 255, 0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    rgba(11, 13, 18, 0.78);
+  border: 1px solid rgba(94, 230, 200, 0.35);
+  color: #d8dbe2;
+  font-family: ui-monospace, Consolas, monospace;
+  letter-spacing: 0.04em;
+  /* Cantos cortados (nao arredondados) - reforca a leitura "tecnica/angulosa"
+     ja adotada no resto da interface, em vez do border-radius comum de UI. */
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+  box-shadow: inset 0 1px 0 rgba(164, 245, 226, 0.08);
+  /* drop-shadow (nao box-shadow) para o glow externo: acompanha o contorno
+     recortado pelo clip-path, em vez de brilhar como um retangulo por baixo
+     de um painel com cantos cortados. */
+  filter: drop-shadow(0 0 8px rgba(94, 230, 200, 0.18));
+}
+
+.title {
+  margin: 0 0 8px;
+  color: #5ee6c8;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 6px rgba(94, 230, 200, 0.35);
+}
+
+.button {
+  padding: 0.75rem 1rem;
+  background: rgba(11, 13, 18, 0.4);
+  border: 1px solid #3a4150;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  clip-path: polygon(
+    8px 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%,
+    0 8px
+  );
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    box-shadow 0.15s;
+}
+
+.button:hover:not(:disabled) {
+  border-color: #5ee6c8;
+  color: #5ee6c8;
+  box-shadow: 0 0 12px rgba(94, 230, 200, 0.25);
+}
+
+.button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

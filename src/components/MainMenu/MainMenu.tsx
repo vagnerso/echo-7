@@ -13,18 +13,24 @@ export function MainMenu({ onNewGame, onContinue, hasSave }: MainMenuProps) {
       <p className={styles.subtitle}>THE LAST SIGNAL</p>
 
       <nav className={styles.actions}>
-        <button type="button" onClick={onNewGame}>
+        <button type="button" className={styles.button} onClick={onNewGame}>
           NEW GAME
         </button>
         <button
           type="button"
+          className={styles.button}
           onClick={onContinue}
           disabled={!hasSave}
           title={hasSave ? undefined : 'Nenhum progresso salvo ainda'}
         >
           CONTINUE
         </button>
-        <button type="button" disabled title="Ainda nao implementado">
+        <button
+          type="button"
+          className={styles.button}
+          disabled
+          title="Ainda nao implementado"
+        >
           SETTINGS
         </button>
       </nav>

@@ -45,20 +45,7 @@
 }
 
 .button {
+  composes: button from '@/styles/hudPanel.module.css';
   margin-top: 1rem;
   padding: 0.75rem 1.5rem;
-  background: transparent;
-  border: 1px solid #3a4150;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  cursor: pointer;
-  transition:
-    border-color 0.15s,
-    color 0.15s;
-}
-
-.button:hover {
-  border-color: #5ee6c8;
-  color: #5ee6c8;
 }

@@ -1,22 +1,19 @@
 .hud {
+  composes: panel from '@/styles/hudPanel.module.css';
   position: absolute;
   top: 16px;
   right: 16px;
   max-width: 280px;
   padding: 10px 14px;
-  background: rgba(11, 13, 18, 0.7);
-  border: 1px solid rgba(94, 230, 200, 0.3);
-  color: #d8dbe2;
-  font-family: ui-monospace, Consolas, monospace;
   font-size: 12px;
-  letter-spacing: 0.04em;
   pointer-events: none;
   text-align: right;
 }
 
 .label {
-  color: #5ee6c8;
-  opacity: 0.8;
+  composes: title from '@/styles/hudPanel.module.css';
+  font-size: 11px;
+  opacity: 0.85;
   margin: 0 0 4px;
 }
 
