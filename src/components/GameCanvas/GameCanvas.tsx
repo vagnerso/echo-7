@@ -44,6 +44,7 @@ import type { Region, WorldObject } from '@/world/region';
 import {
   getHazardTiles,
   getRegionObstacles,
+  getRegionSize,
   getSealedTiles,
 } from '@/world/worldLoader';
 
@@ -107,7 +108,11 @@ const HAZARD_COLOR = 'rgba(230, 120, 90, 0.18)';
 const HAZARD_BORDER_COLOR = 'rgba(230, 120, 90, 0.6)';
 const SEALED_COLOR = 'rgba(170, 120, 230, 0.18)';
 const SEALED_BORDER_COLOR = 'rgba(170, 120, 230, 0.6)';
-const DECORATION_COLOR = 'rgba(216, 219, 226, 0.5)';
+const ROCK_CLUSTER_COLORS = [
+  'rgba(150, 100, 80, 0.55)',
+  'rgba(120, 80, 110, 0.5)',
+  'rgba(180, 160, 130, 0.45)',
+];
 const INTERACTABLE_COLOR = 'rgba(230, 170, 94, 0.7)';
 const INTERACTABLE_ACTIVATED_COLOR = 'rgba(94, 230, 140, 0.8)';
 const COLLECTIBLE_COLOR = 'rgba(240, 210, 90, 0.85)';
@@ -117,6 +122,165 @@ const SWITCH_ACTIVE_COLOR = 'rgba(200, 160, 255, 0.95)';
 const HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.9)';
 const SCANNABLE_COLOR = 'rgba(120, 170, 255, 0.7)';
 const MEMORY_FRAGMENT_COLOR = 'rgba(230, 130, 200, 0.85)';
+
+/** Preenchimento visivel so fora dos limites do mundo (camera perto das bordas). */
+const VOID_COLOR = '#05060a';
+
+interface GroundPalette {
+  skyTop: string;
+  skyBottom: string;
+  speckleColors: readonly string[];
+  crackColor: string;
+  accentColor: string;
+  /** Se definido, desenha uma grade tecnologica em vez de rachaduras organicas (piso de instalacao). */
+  gridSpacing?: number;
+}
+
+// Uma paleta por regiao, para que cada uma pareca um lugar distinto do mesmo
+// planeta (a narrativa ja separa Landing Zone / Ancient Ruins / Signal Core
+// como locais tematicamente diferentes - ver content/regions.ts).
+const REGION_GROUND_PALETTES: Record<string, GroundPalette> = {
+  'region-1': {
+    // Landing Zone: solo rochoso alienigena, tons de ferrugem e roxo.
+    skyTop: '#241a2e',
+    skyBottom: '#140f1c',
+    speckleColors: [
+      'rgba(150, 100, 80, 0.3)',
+      'rgba(120, 80, 110, 0.28)',
+      'rgba(90, 70, 100, 0.22)',
+    ],
+    crackColor: 'rgba(60, 40, 70, 0.35)',
+    accentColor: 'rgba(230, 140, 90, 0.16)',
+  },
+  'region-2': {
+    // Ancient Ruins: pedra antiga, tons dourados e verde-musgo.
+    skyTop: '#211f14',
+    skyBottom: '#14130c',
+    speckleColors: ['rgba(160, 145, 90, 0.28)', 'rgba(120, 140, 100, 0.24)'],
+    crackColor: 'rgba(80, 90, 60, 0.4)',
+    accentColor: 'rgba(180, 210, 150, 0.14)',
+  },
+  'region-3': {
+    // Signal Core: piso metalico de instalacao, azul tecnologico - grade em
+    // vez de rachaduras organicas, ecoando a estetica de "computador de bordo".
+    skyTop: '#0f1a24',
+    skyBottom: '#0a121a',
+    speckleColors: ['rgba(90, 130, 160, 0.14)'],
+    crackColor: 'rgba(60, 100, 130, 0.2)',
+    accentColor: 'rgba(94, 230, 200, 0.2)',
+    gridSpacing: 64,
+  },
+};
+
+const DEFAULT_GROUND_PALETTE: GroundPalette = REGION_GROUND_PALETTES[
+  'region-1'
+]!;
+
+/**
+ * Gera, uma unica vez por regiao, uma textura de chao (canvas offscreen do
+ * tamanho do mundo inteiro) com gradiente + ruido procedural. So e desenhada
+ * (drawImage) a cada frame depois - gerar as manchas/rachaduras de novo a
+ * cada frame seria caro e o padrao nunca muda, entao nao ha ganho visual.
+ */
+function createGroundTexture(
+  region: Region,
+  palette: GroundPalette,
+): HTMLCanvasElement {
+  const { width, height } = getRegionSize(region);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(width, 1);
+  canvas.height = Math.max(height, 1);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, palette.skyTop);
+  gradient.addColorStop(1, palette.skyBottom);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  if (palette.gridSpacing) {
+    ctx.strokeStyle = palette.crackColor;
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= width; x += palette.gridSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= height; y += palette.gridSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  } else {
+    // Rachaduras organicas: poucos segmentos curtos e irregulares.
+    const crackCount = Math.floor((width * height) / 12_000);
+    ctx.strokeStyle = palette.crackColor;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < crackCount; i += 1) {
+      let x = Math.random() * width;
+      let y = Math.random() * height;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      const segments = 2 + Math.floor(Math.random() * 3);
+      for (let s = 0; s < segments; s += 1) {
+        x += (Math.random() - 0.5) * 24;
+        y += (Math.random() - 0.5) * 24;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // Manchas/pedras dispersas - da textura organica ao solo.
+  const speckleCount = Math.floor((width * height) / 1600);
+  for (let i = 0; i < speckleCount; i += 1) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    const radius = 2 + Math.random() * 5;
+    ctx.fillStyle =
+      palette.speckleColors[
+        Math.floor(Math.random() * palette.speckleColors.length)
+      ]!;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Destaques de acento (veios de energia / luzes de status), esparsos.
+  const accentCount = Math.floor((width * height) / 22_000);
+  ctx.fillStyle = palette.accentColor;
+  for (let i = 0; i < accentCount; i += 1) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    ctx.beginPath();
+    ctx.arc(x, y, 2 + Math.random() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return canvas;
+}
+
+/**
+ * Cache por regiao num Map (mantido pelo componente, nao em modulo) - criar
+ * HTMLCanvasElement exige `document`, entao so pode acontecer em runtime de
+ * navegador, nunca no import do modulo (isso quebraria se este arquivo
+ * algum dia fosse importado sob o ambiente de teste `node` do Vitest).
+ */
+function getGroundTexture(
+  cache: Map<string, HTMLCanvasElement>,
+  region: Region,
+): HTMLCanvasElement {
+  const cached = cache.get(region.id);
+  if (cached) return cached;
+
+  const palette = REGION_GROUND_PALETTES[region.id] ?? DEFAULT_GROUND_PALETTE;
+  const texture = createGroundTexture(region, palette);
+  cache.set(region.id, texture);
+  return texture;
+}
 
 function renderPlayer(
   ctx: CanvasRenderingContext2D,
@@ -250,6 +414,19 @@ function renderTiles(
   }
 }
 
+/**
+ * Hash simples e estavel (mesmo id sempre gera o mesmo numero) - usado para
+ * variar o agrupamento de pedras de cada decoracao sem Math.random() por
+ * frame, o que faria o agrupamento "tremer" a cada render.
+ */
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  }
+  return hash;
+}
+
 function renderDecorations(
   ctx: CanvasRenderingContext2D,
   objects: readonly WorldObject[],
@@ -257,8 +434,6 @@ function renderDecorations(
   canvasWidth: number,
   canvasHeight: number,
 ): void {
-  ctx.fillStyle = DECORATION_COLOR;
-
   for (const object of objects) {
     if (object.interactable || object.scannable) continue;
 
@@ -268,9 +443,27 @@ function renderDecorations(
       canvasWidth,
       canvasHeight,
     );
-    ctx.beginPath();
-    ctx.arc(screenPosition.x, screenPosition.y, 6, 0, Math.PI * 2);
-    ctx.fill();
+
+    // Agrupamento de pedras (3 circulos) em vez de um unico ponto generico -
+    // reforca a leitura de "detrito/formacao rochosa" do terreno alienigena.
+    const hash = hashString(object.id);
+    for (let i = 0; i < 3; i += 1) {
+      const seed = Math.abs((hash >> (i * 7)) % 1000) / 1000;
+      const angle = seed * Math.PI * 2 + i * 2.1;
+      const distance = 3 + seed * 5;
+      const radius = 3 + ((hash >> (i * 3 + 2)) % 4);
+
+      ctx.fillStyle = ROCK_CLUSTER_COLORS[i % ROCK_CLUSTER_COLORS.length]!;
+      ctx.beginPath();
+      ctx.arc(
+        screenPosition.x + Math.cos(angle) * distance,
+        screenPosition.y + Math.sin(angle) * distance,
+        radius,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
   }
 }
 
@@ -460,6 +653,7 @@ export function GameCanvas() {
   // sessoes longas, sem afetar a suavidade dos senos usados no render.
   const animationTimeRef = useRef<number>(0);
   const isMovingRef = useRef<boolean>(false);
+  const groundTexturesRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const transitionRef = useRef<TransitionState>({
     phase: 'idle',
     progress: 0,
@@ -786,7 +980,9 @@ export function GameCanvas() {
       const regionData = REGION_DATA[useGameStore.getState().currentRegionId];
       if (!regionData) return;
 
-      ctx.fillStyle = '#12141c';
+      // So aparece nas bordas do mapa, quando a camera mostra alem dos
+      // limites do mundo - o resto da tela e coberto pela textura de chao.
+      ctx.fillStyle = VOID_COLOR;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const player = playerRef.current;
@@ -798,6 +994,18 @@ export function GameCanvas() {
 
       const camera = cameraRef.current;
       updateCameraFollow(camera, renderPosition);
+
+      const groundTexture = getGroundTexture(
+        groundTexturesRef.current,
+        regionData.region,
+      );
+      const worldOrigin = worldToScreen(
+        { x: 0, y: 0 },
+        camera,
+        canvas.width,
+        canvas.height,
+      );
+      ctx.drawImage(groundTexture, worldOrigin.x, worldOrigin.y);
 
       const activeObjects = regionData.region.objects.filter(
         (object) => !collectedItemsRef.current.has(object.id),

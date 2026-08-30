@@ -544,3 +544,23 @@ Com o MVP completo (Fases 0-10), o roadmap original não previa uma passada de a
 
 **Detalhe técnico:** a animação (passada, flutuação, pulso da antena) usa um acumulador de tempo (`animationTimeRef`, em ms) incrementado em `update(dt)` e passado ao `render`, com módulo de 100.000 para não perder precisão de ponto flutuante em sessões longas — o valor absoluto do tempo não importa, só a fase dos senos que dependem dele.
 
+### Chão do mundo: textura procedural pré-renderizada por região, não geração por frame
+
+**Contexto:** o fundo do jogo era uma cor sólida (`#12141c`) — os tiles `'floor'` nunca eram desenhados (só paredes/hazards/sealed tinham retângulo visível). Para o cenário "parecer um outro planeta", cada região precisava de solo com textura e identidade visual própria.
+
+**Decisão:** cada região ganhou uma `GroundPalette` (cores de gradiente, manchas, rachaduras/grade, acento) em `REGION_GROUND_PALETTES`, usada por `createGroundTexture` para desenhar **uma única vez** um canvas offscreen do tamanho inteiro do mundo daquela região (gradiente + manchas/rachaduras proceduais via `Math.random()`, ou uma grade técnica para o Signal Core). Esse canvas é cacheado por `region.id` num `Map` mantido pelo componente (`groundTexturesRef`) e, a cada frame, apenas copiado (`ctx.drawImage`) na posição correspondente à câmera — nunca redesenhado tile a tile.
+
+**Alternativas consideradas:**
+1. Desenhar a textura tile a tile a cada frame (como os outros elementos da cena) — descartada por custo: dezenas a centenas de tiles com várias formas cada, todo frame, sem necessidade, já que o padrão nunca muda depois de gerado.
+2. Usar uma seed determinística (RNG customizado) para a geração, permitindo reproduzir o mesmo padrão entre sessões — descartada por desnecessária: a textura só precisa ser estável *durante* uma sessão (gerada uma vez, cacheada), não entre sessões diferentes; `Math.random()` direto basta, mesmo raciocínio já usado para os parâmetros cosméticos do `particleSystem` (ver decisão da Fase 9 acima).
+
+**Motivo:** mantém o custo por frame igual ao de antes (um único `fillRect`/`drawImage` cobrindo a tela) enquanto adiciona riqueza visual e diferenciação temática entre Landing Zone (solo rochoso ferrugem/roxo), Ancient Ruins (pedra dourada/musgo) e Signal Core (piso técnico com grade ciano, ecoando a estética de "computador de bordo" já usada na UI).
+
+**Risco/limite conhecido:** a criação do `HTMLCanvasElement` só pode acontecer em runtime de navegador (depende de `document`) — por isso o cache vive num `useRef` do componente, não em escopo de módulo; `GameCanvas.tsx` nunca é importado sob o ambiente `node` do Vitest hoje, mas se algum dia for, esse isolamento evita quebrar os testes.
+
+### Decorações de cenário: agrupamento de "pedras" com hash estável, não `Math.random()` por frame
+
+**Decisão:** `renderDecorations` (objetos sem `interactable`/`scannable`, puro cenário) passou de um único círculo cinza para um pequeno agrupamento de 3 círculos, com posição/tamanho derivados de um hash simples do `id` do objeto (`hashString`), não de `Math.random()`.
+
+**Motivo:** precisa parecer aleatório mas **não pode mudar a cada frame** — usar `Math.random()` diretamente no `render` faria o agrupamento "tremer" visualmente a cada redesenho. Um hash do id é determinístico (mesmo objeto sempre gera o mesmo padrão) e não exige guardar estado extra por objeto.
+
