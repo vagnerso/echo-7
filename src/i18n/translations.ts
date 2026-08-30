@@ -56,6 +56,7 @@ export interface Translations {
   };
   inventory: {
     title: string;
+    close: string;
     empty: string;
     slots: (count: number, capacity: number) => string;
     upgradesTitle: string;

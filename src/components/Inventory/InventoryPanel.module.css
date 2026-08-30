@@ -11,6 +11,7 @@
 
 .panel {
   composes: panel from '@/styles/hudPanel.module.css';
+  position: relative;
   min-width: 280px;
   max-width: min(480px, 90vw);
   max-height: 85vh;
@@ -27,6 +28,18 @@
     width: 92vw;
     padding: 14px 16px;
   }
+}
+
+.closeButton {
+  composes: button from '@/styles/hudPanel.module.css';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  line-height: 1;
+  font-size: 16px;
 }
 
 .title {

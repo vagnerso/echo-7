@@ -721,3 +721,25 @@ Pedido do desenvolvedor: o jogo funcionar em telas de toque. Plano completo (as 
 **Decisão:** não implementar zoom de câmera para telas estreitas nesta fase, mesmo a câmera sendo 1:1 pixel (sem zoom) desde a Fase 0.
 
 **Motivo:** registrado no plano da v2.0 como algo a avaliar só depois de jogar de verdade num viewport móvel com D-pad e HUD responsivo já prontos - adicionar um mecanismo de zoom (e os testes que ele exigiria) para um problema que pode não incomodar na prática seria escopo especulativo.
+
+### Correções pós-teste em dispositivo real (Fase A)
+
+Dois problemas reportados pelo desenvolvedor depois de testar a Fase A num celular de verdade (não só emulação de viewport).
+
+#### Inventário ficava impossível de fechar no toque
+
+**Causa raiz:** o próprio fix de `z-index` desta fase (`TouchControls` abaixo de modais, para o D-pad não vazar por baixo do `InventoryPanel`) tem um efeito colateral: o botão de ação "I" - que abre e fecha o inventário - também fica atrás do backdrop assim que o modal abre. Abrir funciona (o backdrop ainda não existe no momento do toque); fechar pelo mesmo botão não, porque nesse momento o backdrop já está por cima dele. Teclado não sofre disso (listener global, não depende de hit-test do DOM), por isso o problema só aparecia no toque.
+
+**Decisão:** `InventoryPanel` ganhou dois caminhos novos de fechar, nenhum dependente do `TouchControls`: um botão "×" (`aria-label` traduzido) dentro do próprio painel, e fechar ao tocar/clicar fora dele (no backdrop) - checando `event.target === event.currentTarget` para não fechar ao clicar em conteúdo interno que borbulha o evento até o backdrop.
+
+**Motivo:** a causa raiz (z-index intencional, documentado acima) não deveria ser revertida - continua correto o D-pad não funcionar por baixo de um modal aberto. A correção certa é um modal sempre ter uma saída própria, sem depender de nenhum controle que ele mesmo possa estar cobrindo - um princípio de UI geral, não um workaround específico de mobile (por isso o botão "×" também aparece no desktop).
+
+#### Texto do `FragmentRevealOverlay` "grande demais" e ilegível no celular
+
+**Causa raiz dupla:** (1) o painel nunca teve `font-size` próprio - herdava o padrão do navegador (~16px), maior que todos os outros painéis do jogo (12-14px); (2) a correção anterior desta mesma fase (subir o painel para `bottom: 90px` no toque, para não ficar atrás do D-pad) não bastava para um fragmento de texto longo (várias linhas) - a altura do próprio texto ainda alcançava os botões, só com uma folga maior antes de colidir.
+
+**Decisão:** `.panel` ganhou `font-size: 14px` (era implícito, ~16px) com `12px` adicional no breakpoint de toque; e o posicionamento em toque trocou de "ancorado no rodapé, deslocado para cima" para **centralizado verticalmente** (`top: 50%; transform: translate(-50%, -50%)`), com `max-height: 70vh; overflow-y: auto` como proteção adicional.
+
+**Alternativa considerada:** aumentar ainda mais o deslocamento do `bottom` - descartada por ser um ajuste manual calibrado para o comprimento do texto de UM fragmento específico; qualquer fragmento mais longo (ou fonte do usuário maior via acessibilidade do navegador) voltaria a colidir. Centralizar verticalmente resolve a causa (posição fixa competindo por espaço com outro elemento de altura variável) em vez de calibrar a distância uma vez.
+
+**Lição:** os dois problemas só apareceram em teste num dispositivo real, não na emulação de viewport usada para verificar a Fase A - a emulação (Playwright + viewport de iPhone) confirma layout e alcançabilidade por hit-test, mas não substitui jogar de verdade uma sessão inteira (abrir e fechar o inventário repetidamente, coletar um fragmento com texto longo).

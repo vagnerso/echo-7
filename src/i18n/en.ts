@@ -22,6 +22,7 @@ export const en: Translations = {
   },
   inventory: {
     title: 'INVENTORY',
+    close: 'Close',
     empty: 'No items collected yet.',
     slots: (count, capacity) => `${count}/${capacity} slots`,
     upgradesTitle: 'UPGRADES',

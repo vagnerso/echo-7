@@ -20,9 +20,30 @@ export function InventoryPanel() {
     collectedFragments.has(fragment.id),
   );
 
+  const close = () => useUiStore.getState().toggleInventory();
+
   return (
-    <div className={styles.backdrop}>
+    // Fecha ao tocar/clicar fora do painel - so quando o alvo do clique e o
+    // proprio backdrop, nao um filho borbulhando (senao clicar dentro do
+    // painel tambem fecharia). Existe porque em telas de toque o botao "I"
+    // do TouchControls fica atras deste modal (z-index de proposito, para o
+    // D-pad nao vazar por baixo dele) - sem isso nao havia como fechar o
+    // inventario pelo toque depois de aberto.
+    <div
+      className={styles.backdrop}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) close();
+      }}
+    >
       <div className={styles.panel}>
+        <button
+          type="button"
+          className={styles.closeButton}
+          aria-label={t.inventory.close}
+          onClick={close}
+        >
+          ×
+        </button>
         <p className={styles.title}>{t.inventory.title}</p>
 
         {inventory.length === 0 ? (

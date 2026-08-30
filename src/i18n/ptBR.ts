@@ -22,6 +22,7 @@ export const ptBR: Translations = {
   },
   inventory: {
     title: 'INVENTÁRIO',
+    close: 'Fechar',
     empty: 'Nenhum item coletado ainda.',
     slots: (count, capacity) => `${count}/${capacity} vagas`,
     upgradesTitle: 'MELHORIAS',
