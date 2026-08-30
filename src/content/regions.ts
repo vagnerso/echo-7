@@ -11,6 +11,10 @@ const RUINS_TILE_SIZE = 64;
 // Signal Core em si ser definida.
 const SIGNAL_TILE_SIZE = 64;
 
+// Mesmo motivo: a entrada oculta na Landing Zone (buried-cache-entrance)
+// precisa disso antes da regiao Buried Cache (region-4) ser definida.
+const CACHE_TILE_SIZE = 64;
+
 function buildLandingZoneTiles(): TileType[][] {
   const tiles: TileType[][] = [];
 
@@ -120,6 +124,22 @@ export const LANDING_ZONE: Region = {
       scannable: true,
       requiresDeepScanner: true,
       position: { x: 4 * TILE_SIZE, y: 6 * TILE_SIZE },
+    },
+    {
+      // Entrada da area opcional (Buried Cache, region-4) - so aparece no
+      // scanner e so responde a interacao com o Deep Scanner instalado
+      // (requiresDeepScanner gateia os dois, ver systems/interactionSystem.ts
+      // e systems/scannerSystem.ts). Sem isso o jogador podia tropecar na
+      // entrada e entrar sem nunca ter escaneado nada.
+      id: 'buried-cache-entrance',
+      scannable: true,
+      interactable: true,
+      requiresDeepScanner: true,
+      position: { x: 7 * TILE_SIZE, y: 13 * TILE_SIZE },
+      exit: {
+        toRegionId: 'region-4',
+        spawnPosition: { x: 4 * CACHE_TILE_SIZE, y: 6 * CACHE_TILE_SIZE },
+      },
     },
     {
       id: 'exit-to-ancient-ruins',
@@ -323,8 +343,88 @@ export const SIGNAL_CORE: Region = {
   ],
 };
 
+const CACHE_COLS = 8;
+const CACHE_ROWS = 8;
+
+function buildBuriedCacheTiles(): TileType[][] {
+  const tiles: TileType[][] = [];
+
+  for (let row = 0; row < CACHE_ROWS; row += 1) {
+    const line: TileType[] = [];
+    for (let col = 0; col < CACHE_COLS; col += 1) {
+      const isBorder =
+        row === 0 ||
+        row === CACHE_ROWS - 1 ||
+        col === 0 ||
+        col === CACHE_COLS - 1;
+      line.push(isBorder ? 'wall' : 'floor');
+    }
+    tiles.push(line);
+  }
+
+  return tiles;
+}
+
+// Area opcional/secreta (v2.0): um deposito subterraneo da expedicao humana
+// anterior, so alcancavel via buried-cache-entrance (Landing Zone), que exige
+// o Deep Scanner. Nao faz parte do arco principal - nao muda o objetivo da
+// missao (sem chamada a setObjective em GameCanvas.tsx para 'region-4') nem
+// usa o tile 'sealed' (fixado a ruins-puzzle-01 desde a Fase 7) - o gate do
+// premio fica so no objeto (requiresPuzzleSolved), mesmo padrao do Signal
+// Core. Ver docs/DECISIONS.md.
+export const BURIED_CACHE: Region = {
+  id: 'region-4',
+  name: 'Buried Cache',
+  tileSize: CACHE_TILE_SIZE,
+  tiles: buildBuriedCacheTiles(),
+  objects: [
+    {
+      id: 'exit-to-landing-zone-from-cache',
+      interactable: true,
+      position: { x: 4 * CACHE_TILE_SIZE, y: 6 * CACHE_TILE_SIZE },
+      exit: {
+        toRegionId: 'region-1',
+        spawnPosition: { x: 7 * TILE_SIZE, y: 13 * TILE_SIZE },
+      },
+    },
+    {
+      id: 'buried-cache-switch-a',
+      interactable: true,
+      position: { x: 2 * CACHE_TILE_SIZE, y: 2 * CACHE_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'buried-cache-puzzle', switchId: 'switch-a' },
+    },
+    {
+      id: 'buried-cache-switch-b',
+      interactable: true,
+      position: { x: 5 * CACHE_TILE_SIZE, y: 2 * CACHE_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'buried-cache-puzzle', switchId: 'switch-b' },
+    },
+    {
+      id: 'buried-cache-switch-c',
+      interactable: true,
+      position: { x: 4 * CACHE_TILE_SIZE, y: 4 * CACHE_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'buried-cache-puzzle', switchId: 'switch-c' },
+    },
+    {
+      id: 'fragment-pickup-07',
+      interactable: true,
+      requiresPuzzleSolved: 'buried-cache-puzzle',
+      position: { x: 1 * CACHE_TILE_SIZE, y: 5 * CACHE_TILE_SIZE },
+      memoryFragment: 'fragment-07',
+    },
+    {
+      id: 'fragment-pickup-08',
+      interactable: true,
+      requiresPuzzleSolved: 'buried-cache-puzzle',
+      position: { x: 6 * CACHE_TILE_SIZE, y: 5 * CACHE_TILE_SIZE },
+      memoryFragment: 'fragment-08',
+    },
+  ],
+};
+
 export const REGIONS: Record<string, Region> = {
   [LANDING_ZONE.id]: LANDING_ZONE,
   [ANCIENT_RUINS.id]: ANCIENT_RUINS,
   [SIGNAL_CORE.id]: SIGNAL_CORE,
+  [BURIED_CACHE.id]: BURIED_CACHE,
 };

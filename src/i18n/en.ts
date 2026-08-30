@@ -113,6 +113,10 @@ export const en: Translations = {
       age: '~8,000 years',
       material: 'UNKNOWN',
     },
+    'buried-cache-entrance': {
+      label: 'BURIED TRANSMITTER',
+      material: 'COMPOSITE ALLOY',
+    },
   },
   fragments: {
     'fragment-01':
@@ -127,5 +131,9 @@ export const en: Translations = {
       'Log 31 - The signal is not a broadcast. It is a question. It has been asking the same question for thousands of years, to no one. We were never meant to answer it.',
     'fragment-06':
       "Log 33 - Final entry, if anyone finds this. It isn't hostile. It just... recognized something in us it was not looking for. I don't think it will make that mistake again. To whoever comes next: it isn't waiting for a person.",
+    'fragment-07':
+      "Log 07 (Kade) - Off the record. Found something in the lower strata during survey, not on the official map. Logging it here until I know what it is. If anyone finds this and I'm not around to explain: it's not a mineral deposit. I don't know what it is.",
+    'fragment-08':
+      "Log 15 (Kade) - Buried the drive under the east ridge, away from camp. If the others read what I've been recording they'll pull me off the site, and I'm not leaving until I understand what's underneath us. It isn't geology. I keep telling myself it isn't geology.",
   },
 };

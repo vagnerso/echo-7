@@ -175,6 +175,16 @@ const REGION_GROUND_PALETTES: Record<string, GroundPalette> = {
     accentColor: 'rgba(94, 230, 200, 0.2)',
     gridSpacing: 64,
   },
+  'region-4': {
+    // Buried Cache: deposito subterraneo humano - terra/madeira escura, sem
+    // nada alienigena (contraste deliberado com as outras 3 paletas), com um
+    // acento ambar quente lembrando luz de emergencia/equipamento antigo.
+    skyTop: '#1a140f',
+    skyBottom: '#0f0b08',
+    speckleColors: ['rgba(140, 110, 70, 0.28)', 'rgba(100, 80, 60, 0.22)'],
+    crackColor: 'rgba(70, 55, 40, 0.4)',
+    accentColor: 'rgba(230, 180, 90, 0.16)',
+  },
 };
 
 const DEFAULT_GROUND_PALETTE: GroundPalette = REGION_GROUND_PALETTES[
@@ -626,6 +636,7 @@ const REGION_SPAWN_POINTS: Record<string, Vector2> = {
   'region-1': INITIAL_SPAWN,
   'region-2': { x: 128, y: 448 },
   'region-3': { x: 320, y: 512 },
+  'region-4': { x: 256, y: 384 },
 };
 
 function resolveSpawnPoint(): Vector2 {
@@ -835,6 +846,7 @@ export function GameCanvas() {
         activeObjects,
         undefined,
         useGameStore.getState().solvedPuzzles,
+        useGameStore.getState().installedUpgrades.has('deep-scanner'),
       );
       nearestInteractableRef.current = nearestInteractable;
 

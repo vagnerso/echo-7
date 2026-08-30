@@ -32,4 +32,17 @@ export const MEMORY_FRAGMENTS: readonly MemoryFragment[] = [
     regionId: 'region-3',
     corruption: 12,
   },
+  // Buried Cache (region-4): area opcional, so acessivel com o Deep Scanner.
+  // Numeracao de log (07, 15) encaixa cronologicamente entre os logs ja
+  // existentes (03, 11, 19...) - ver docs/DECISIONS.md.
+  {
+    id: 'fragment-07',
+    regionId: 'region-4',
+    corruption: 35,
+  },
+  {
+    id: 'fragment-08',
+    regionId: 'region-4',
+    corruption: 20,
+  },
 ];

@@ -5,14 +5,19 @@ export const INTERACTION_RANGE = 56;
 
 /**
  * Retorna o objeto interagivel mais proximo dentro do alcance, ou null se
- * nenhum estiver. Ignora objetos de decoracao e objetos que exigem um
- * puzzle ainda nao resolvido (requiresPuzzleSolved).
+ * nenhum estiver. Ignora objetos de decoracao, objetos que exigem um puzzle
+ * ainda nao resolvido (requiresPuzzleSolved) e objetos que exigem o Deep
+ * Scanner ainda nao instalado (requiresDeepScanner) - um objeto "escondido"
+ * (ex: entrada secreta so revelada ao escanear) nao deveria responder a
+ * interacao antes de o jogador conseguir detecta-lo, mesmo que ele ja saiba
+ * a posicao exata por algum outro meio.
  */
 export function findNearestInteractable(
   playerPosition: Vector2,
   objects: readonly WorldObject[],
   range: number = INTERACTION_RANGE,
   solvedPuzzles: ReadonlySet<string> = new Set(),
+  hasDeepScanner = false,
 ): WorldObject | null {
   let nearest: WorldObject | null = null;
   let nearestDistance = Infinity;
@@ -25,6 +30,7 @@ export function findNearestInteractable(
     ) {
       continue;
     }
+    if (object.requiresDeepScanner && !hasDeepScanner) continue;
 
     const distance = Math.hypot(
       object.position.x - playerPosition.x,

@@ -18,4 +18,17 @@ export const SIGNAL_CORE_PUZZLE: Puzzle = {
   },
 };
 
-export const PUZZLES: readonly Puzzle[] = [RUINS_PUZZLE_01, SIGNAL_CORE_PUZZLE];
+// Area opcional (Buried Cache) - mesmo tipo 'sequence', mesmo numero de nos
+// do puzzle da Ancient Ruins (3), por ser uma recompensa de exploracao, nao
+// o clímax da vertical slice.
+export const BURIED_CACHE_PUZZLE: Puzzle = {
+  id: 'buried-cache-puzzle',
+  type: 'sequence',
+  config: { correctOrder: ['switch-a', 'switch-b', 'switch-c'] },
+};
+
+export const PUZZLES: readonly Puzzle[] = [
+  RUINS_PUZZLE_01,
+  SIGNAL_CORE_PUZZLE,
+  BURIED_CACHE_PUZZLE,
+];

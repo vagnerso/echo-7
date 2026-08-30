@@ -115,6 +115,10 @@ export const ptBR: Translations = {
       age: '~8.000 anos',
       material: 'DESCONHECIDO',
     },
+    'buried-cache-entrance': {
+      label: 'TRANSMISSOR ENTERRADO',
+      material: 'LIGA COMPOSTA',
+    },
   },
   fragments: {
     'fragment-01':
@@ -129,5 +133,9 @@ export const ptBR: Translations = {
       'Log 31 - O sinal não é uma transmissão. É uma pergunta. Ele vem fazendo a mesma pergunta há milhares de anos, para ninguém. Nunca fomos feitos para respondê-la.',
     'fragment-06':
       "Log 33 - Registro final, se alguém encontrar isto. Não é hostil. Ele só... reconheceu em nós algo que não estava procurando. Acho que não vai cometer esse engano de novo. Para quem vier depois: ele não está esperando por uma pessoa.",
+    'fragment-07':
+      'Log 07 (Kade) - Extraoficial. Encontrei algo nos estratos inferiores durante o levantamento, fora do mapa oficial. Estou registrando aqui até saber o que é. Se alguém encontrar isto e eu não estiver por perto para explicar: não é um depósito mineral. Eu não sei o que é.',
+    'fragment-08':
+      'Log 15 (Kade) - Enterrei o drive sob a crista leste, longe do acampamento. Se os outros lerem o que venho registrando, vão me tirar do local, e eu não vou embora até entender o que há debaixo de nós. Não é geologia. Eu fico repetindo pra mim mesmo que não é geologia.',
   },
 };

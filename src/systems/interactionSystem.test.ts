@@ -82,4 +82,40 @@ describe('findNearestInteractable', () => {
 
     expect(found?.id).toBe('reward-01');
   });
+
+  it('ignora objeto interagivel que exige o Deep Scanner ainda nao instalado', () => {
+    const objects: WorldObject[] = [
+      {
+        id: 'hidden-entrance',
+        interactable: true,
+        requiresDeepScanner: true,
+        position: { x: 105, y: 100 },
+      },
+    ];
+
+    const found = findNearestInteractable({ x: 100, y: 100 }, objects, 20);
+
+    expect(found).toBeNull();
+  });
+
+  it('detecta o objeto que exige Deep Scanner quando ja instalado', () => {
+    const objects: WorldObject[] = [
+      {
+        id: 'hidden-entrance',
+        interactable: true,
+        requiresDeepScanner: true,
+        position: { x: 105, y: 100 },
+      },
+    ];
+
+    const found = findNearestInteractable(
+      { x: 100, y: 100 },
+      objects,
+      20,
+      undefined,
+      true,
+    );
+
+    expect(found?.id).toBe('hidden-entrance');
+  });
 });

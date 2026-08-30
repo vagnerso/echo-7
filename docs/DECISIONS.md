@@ -776,3 +776,35 @@ Pedido do desenvolvedor: uma seção no menu com um tutorial/briefing, para o jo
 
 **Motivo:** mantém `NEW GAME`/`CONTINUE` nas duas primeiras posições (as ações mais prováveis para quem já conhece o jogo), com o tutorial posicionado antes de `SETTINGS` por ser mais relevante a um jogador novo decidindo o que fazer a seguir.
 
+## v2.0 — Fase C: 4ª região (área opcional)
+
+Pedido do desenvolvedor: uma 4ª região jogável. Decidido no plano da v2.0 e confirmado antes de implementar: área **opcional/secreta** dentro do arco atual (não altera o final já escrito do Signal Core), reaproveitando mecanismos existentes (puzzle `sequence`, upgrades já existentes), com tema escolhido pelo desenvolvedor entre opções apresentadas: um **depósito subterrâneo da expedição humana anterior** ("Buried Cache") - aprofunda o lado humano do mistério (Kade, a expedição) em vez do lado alienígena, sem tocar no gancho final.
+
+### Bug/lacuna encontrada ao desenhar a entrada oculta: `requiresDeepScanner` não gateava interação
+
+**Contexto:** o padrão já existente (`hidden-signal-01`) é só `scannable + requiresDeepScanner`, nunca `interactable` ao mesmo tempo - então nunca foi testado se interagir com um objeto assim era bloqueado antes do upgrade. Para a entrada da Buried Cache, o objeto precisa ser as duas coisas (escaneável para ser descoberto, interagível para funcionar como porta).
+
+**Causa raiz:** `findNearestInteractable` (`systems/interactionSystem.ts`) só filtrava por `requiresPuzzleSolved` - nunca verificava `requiresDeepScanner`. Um objeto com as duas flags seria invisível ao scanner sem o upgrade (correto), mas ainda seria **interagível por tecla E** para quem soubesse a posição exata sem nunca ter escaneado nada.
+
+**Decisão:** `findNearestInteractable` ganhou um 5º parâmetro (`hasDeepScanner = false`) e um filtro simétrico ao já existente para `requiresPuzzleSolved`. `GameCanvas.tsx` passa `installedUpgrades.has('deep-scanner')` no mesmo lugar onde já lê essa informação para o scanner.
+
+**Motivo:** a intenção semântica de `requiresDeepScanner` sempre foi "isto não deveria ser alcançável antes do upgrade" - até agora só tinha sido testada pela metade (só o scanner), porque nenhum objeto antes precisava das duas capacidades ao mesmo tempo. Corrigido no sistema (`interactionSystem.ts`), não com um caso especial em `content/regions.ts`, para qualquer objeto futuro com essa combinação de flags se beneficiar automaticamente.
+
+### Sem tile `sealed`, sem `ObjectiveKey` nova - só reaproveitando o que já existe
+
+**Decisão:** `region-4` não introduz nenhum tile `sealed` (evitando a limitação documentada na Fase 7, onde esse tipo está fixado a `ruins-puzzle-01`) - o prêmio (dois fragmentos) é gateado só por `requiresPuzzleSolved` direto no objeto, mesmo padrão do Signal Core (Fase 8). Também não há chamada nova a `setObjective` em `applyExit` para `region-4` - entrar/sair da área não altera `currentObjective`, porque não é uma etapa obrigatória da missão principal.
+
+**Motivo:** ambos os pontos já estavam mapeados como armadilhas conhecidas no plano da v2.0, antes de escrever qualquer conteúdo - a decisão foi só seguir o plano.
+
+### Numeração dos logs (07, 15) encaixa cronologicamente entre os já existentes
+
+**Decisão:** os dois fragmentos novos (`fragment-07`, `fragment-08`) são "Log 07" e "Log 15" - números que caem entre os logs já existentes (03, 11, 19, 24, 31, 33), não depois do último. Ambos são atribuídos a "Kade" (um nome já mencionado, nunca com voz própria, nos logs 11 e 24 do narrador principal) e formam uma pequena subtrama: um achado que ele decide não reportar, e a razão de ele estar isolado na "câmara leste" mencionada depois no Log 24.
+
+**Motivo:** reforça que esta é uma descoberta paralela na mesma linha do tempo da expedição (não um epílogo nem um prólogo), e dá a Kade uma voz própria pela primeira vez - consistente com a diretriz do prompt mestre de história contada por fragmentos que o jogador monta mentalmente, não exposição direta. Rascunho de texto aprovado seguindo o mesmo processo já documentado em `AI_DEVELOPMENT.md`.
+
+### `REGION_GROUND_PALETTES`/`REGION_SPAWN_POINTS`: entradas adicionadas antes de esquecer
+
+**Decisão:** `region-4` ganhou paleta própria (tons terrosos escuros, sem nada alienígena - contraste deliberado com as outras 3) e ponto de spawn para "Continue" - os dois pontos que o plano da v2.0 já sinalizava como fáceis de esquecer (fallback silencioso para a paleta da Landing Zone; jogador preso na região errada ao continuar um save).
+
+**Verificação:** fluxo completo testado de ponta a ponta via injeção de save (Deep Scanner instalado) + navegação real no dev server - escanear a entrada, entrar, resolver o puzzle na ordem certa, coletar os dois fragmentos, conferir a contagem no inventário (atualiza para "/8" automaticamente, sem nenhuma mudança de código além do conteúdo) e sair de volta à Landing Zone. Confirmado por leitura do estado salvo (`localStorage`), não só pela tela - o objetivo da missão (`currentObjective`) permaneceu `exploreLandingZone` durante todo o percurso, confirmando que a área realmente não interfere na progressão principal.
+
