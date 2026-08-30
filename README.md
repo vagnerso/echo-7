@@ -57,8 +57,8 @@ A estrutura completa está detalhada em [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - [x] Fase 0 — Planejamento (GDD, arquitetura, decisões técnicas)
 - [x] Fase 1 — Bootstrap (setup, canvas responsivo, game loop, tela inicial)
 - [x] Fase 2 — Robot (ECHO-7, movimento, câmera, colisão)
-- [ ] Fase 3 — World (mapa, tiles, interação) *(em andamento)*
-- [ ] Fase 4 — Scanner
+- [x] Fase 3 — World (mapa, tiles, interação)
+- [ ] Fase 4 — Scanner *(em andamento)*
 - [ ] Fase 5 — Inventory
 - [ ] Fase 6 — Upgrades
 - [ ] Fase 7 — Puzzles

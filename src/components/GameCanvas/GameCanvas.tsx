@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 
+import { LANDING_ZONE } from '@/content/regions';
 import {
   type Camera,
   createCamera,
@@ -12,20 +13,23 @@ import { createPlayer, type Player, type Vector2 } from '@/entities/player';
 import { useGameLoop } from '@/hooks/useGameLoop';
 import type { AABB } from '@/systems/collisionSystem';
 import { resolveCollisions } from '@/systems/collisionSystem';
+import { findNearestInteractable } from '@/systems/interactionSystem';
 import { updatePlayerMovement } from '@/systems/movementSystem';
+import type { Region, WorldObject } from '@/world/region';
+import { getRegionObstacles } from '@/world/worldLoader';
 
 import styles from './GameCanvas.module.css';
 
-const PLAYER_COLOR = '#5ee6c8';
+const CURRENT_REGION: Region = LANDING_ZONE;
+const REGION_OBSTACLES: readonly AABB[] = getRegionObstacles(CURRENT_REGION);
 
-// Obstaculos fixos so para provar visualmente que a colisao funciona antes
-// de existir mundo/mapa de verdade. Serao substituidos pelos obstaculos
-// reais de cada regiao na Fase 3.
-const DEBUG_OBSTACLES: readonly AABB[] = [
-  { x: 350, y: 100, width: 150, height: 300 },
-];
-const OBSTACLE_COLOR = 'rgba(94, 230, 200, 0.12)';
-const OBSTACLE_BORDER_COLOR = 'rgba(94, 230, 200, 0.4)';
+const PLAYER_COLOR = '#5ee6c8';
+const WALL_COLOR = 'rgba(94, 230, 200, 0.12)';
+const WALL_BORDER_COLOR = 'rgba(94, 230, 200, 0.4)';
+const DECORATION_COLOR = 'rgba(216, 219, 226, 0.5)';
+const INTERACTABLE_COLOR = 'rgba(230, 170, 94, 0.7)';
+const INTERACTABLE_ACTIVATED_COLOR = 'rgba(94, 230, 140, 0.8)';
+const INTERACTABLE_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.9)';
 
 function renderPlayer(
   ctx: CanvasRenderingContext2D,
@@ -56,88 +60,85 @@ function renderPlayer(
   ctx.fill();
 }
 
-function renderObstacles(
+function renderWalls(
   ctx: CanvasRenderingContext2D,
-  obstacles: readonly AABB[],
+  walls: readonly AABB[],
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
 ): void {
-  for (const obstacle of obstacles) {
+  ctx.fillStyle = WALL_COLOR;
+  ctx.strokeStyle = WALL_BORDER_COLOR;
+
+  for (const wall of walls) {
     const screenTopLeft = worldToScreen(
-      { x: obstacle.x, y: obstacle.y },
+      { x: wall.x, y: wall.y },
       camera,
       canvasWidth,
       canvasHeight,
     );
-
-    ctx.fillStyle = OBSTACLE_COLOR;
-    ctx.strokeStyle = OBSTACLE_BORDER_COLOR;
-    ctx.fillRect(
-      screenTopLeft.x,
-      screenTopLeft.y,
-      obstacle.width,
-      obstacle.height,
-    );
-    ctx.strokeRect(
-      screenTopLeft.x,
-      screenTopLeft.y,
-      obstacle.width,
-      obstacle.height,
-    );
+    ctx.fillRect(screenTopLeft.x, screenTopLeft.y, wall.width, wall.height);
+    ctx.strokeRect(screenTopLeft.x, screenTopLeft.y, wall.width, wall.height);
   }
 }
 
-const GRID_CELL_SIZE = 100;
-const GRID_COLOR = 'rgba(255, 255, 255, 0.06)';
-
-/**
- * Grade em coordenadas de mundo so para provar visualmente que a camera
- * translada o mundo de verdade (sem ela, o jogador sempre aparece no centro
- * da tela e fica impossivel notar a diferenca entre "camera funcionando" e
- * "nada sendo transformado"). Sera substituida pelo mapa real na Fase 3.
- */
-function renderDebugGrid(
+function renderDecorations(
   ctx: CanvasRenderingContext2D,
+  region: Region,
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
 ): void {
-  ctx.strokeStyle = GRID_COLOR;
-  ctx.lineWidth = 1;
+  ctx.fillStyle = DECORATION_COLOR;
 
-  const startX =
-    Math.floor((camera.position.x - canvasWidth / 2) / GRID_CELL_SIZE) *
-    GRID_CELL_SIZE;
-  const endX = camera.position.x + canvasWidth / 2;
-  for (let worldX = startX; worldX <= endX; worldX += GRID_CELL_SIZE) {
-    const { x } = worldToScreen(
-      { x: worldX, y: 0 },
+  for (const object of region.objects) {
+    if (object.kind !== 'decoration') continue;
+
+    const screenPosition = worldToScreen(
+      object.position,
       camera,
       canvasWidth,
       canvasHeight,
     );
     ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvasHeight);
-    ctx.stroke();
+    ctx.arc(screenPosition.x, screenPosition.y, 6, 0, Math.PI * 2);
+    ctx.fill();
   }
+}
 
-  const startY =
-    Math.floor((camera.position.y - canvasHeight / 2) / GRID_CELL_SIZE) *
-    GRID_CELL_SIZE;
-  const endY = camera.position.y + canvasHeight / 2;
-  for (let worldY = startY; worldY <= endY; worldY += GRID_CELL_SIZE) {
-    const { y } = worldToScreen(
-      { x: 0, y: worldY },
+function renderInteractables(
+  ctx: CanvasRenderingContext2D,
+  region: Region,
+  activated: ReadonlyMap<string, boolean>,
+  nearestId: string | null,
+  camera: Camera,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  for (const object of region.objects) {
+    if (object.kind !== 'interactable') continue;
+
+    const screenPosition = worldToScreen(
+      object.position,
       camera,
       canvasWidth,
       canvasHeight,
     );
+
+    if (object.id === nearestId) {
+      ctx.strokeStyle = INTERACTABLE_HIGHLIGHT_COLOR;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(screenPosition.x, screenPosition.y, 14, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = activated.get(object.id)
+      ? INTERACTABLE_ACTIVATED_COLOR
+      : INTERACTABLE_COLOR;
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(canvasWidth, y);
-    ctx.stroke();
+    ctx.arc(screenPosition.x, screenPosition.y, 10, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -148,6 +149,8 @@ export function GameCanvas() {
   const previousPositionRef = useRef<Vector2>({ x: 200, y: 200 });
   const cameraRef = useRef<Camera>(createCamera({ x: 200, y: 200 }));
   const inputRef = useRef<InputManager | null>(null);
+  const nearestInteractableRef = useRef<WorldObject | null>(null);
+  const activatedInteractablesRef = useRef<Map<string, boolean>>(new Map());
 
   useEffect(() => {
     const container = containerRef.current;
@@ -196,10 +199,23 @@ export function GameCanvas() {
         beforeMove,
         player.position,
         player.size,
-        DEBUG_OBSTACLES,
+        REGION_OBSTACLES,
       );
       player.position.x = resolved.x;
       player.position.y = resolved.y;
+
+      const nearest = findNearestInteractable(
+        player.position,
+        CURRENT_REGION.objects,
+      );
+      nearestInteractableRef.current = nearest;
+
+      if (nearest && input.wasActionJustPressed('interact')) {
+        const activated = activatedInteractablesRef.current;
+        activated.set(nearest.id, !activated.get(nearest.id));
+      }
+
+      input.clearJustPressed();
     },
     render: (alpha) => {
       const canvas = canvasRef.current;
@@ -219,10 +235,19 @@ export function GameCanvas() {
       const camera = cameraRef.current;
       updateCameraFollow(camera, renderPosition);
 
-      renderDebugGrid(ctx, camera, canvas.width, canvas.height);
-      renderObstacles(
+      renderWalls(ctx, REGION_OBSTACLES, camera, canvas.width, canvas.height);
+      renderDecorations(
         ctx,
-        DEBUG_OBSTACLES,
+        CURRENT_REGION,
+        camera,
+        canvas.width,
+        canvas.height,
+      );
+      renderInteractables(
+        ctx,
+        CURRENT_REGION,
+        activatedInteractablesRef.current,
+        nearestInteractableRef.current?.id ?? null,
         camera,
         canvas.width,
         canvas.height,

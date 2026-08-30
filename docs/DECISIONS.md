@@ -238,6 +238,34 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Motivo:** mesma lógica da grade de depuração — sem algo para colidir, não dá pra verificar visualmente que a colisão funciona. Será substituído pelos obstáculos reais de cada região na Fase 3.
 
+## Fase 3 — World
+
+### Cada tile de parede vira um AABB, sem mesclar tiles adjacentes
+
+**Decisão:** `getRegionObstacles` gera um retângulo de colisão por tile de parede, mesmo quando vários tiles formam uma parede contínua.
+
+**Motivo:** mesclar tiles adjacentes num único retângulo maior seria uma otimização (menos itens para testar na colisão a cada frame). Na escala atual (algumas dezenas de tiles), isso não é gargalo nenhum — otimizar antes de medir um problema real vai contra a seção 21 do prompt mestre.
+
+### `WorldLoader` não gerencia troca de região
+
+**Decisão:** por enquanto só existem funções puras (`getRegionObstacles`, `getRegionSize`) que derivam dados de um `Region` — nenhuma lógica de "região atual", desbloqueio ou transição.
+
+**Motivo:** só existe uma região (Landing Zone). Construir gerenciamento de troca de região sem uma segunda região para trocar seria especular sobre uma necessidade que ainda não existe.
+
+### `wasActionJustPressed` (borda de subida), não `isActionPressed`, para interação
+
+**Contexto:** `isActionPressed` (já usado no movimento) retorna verdadeiro continuamente enquanto a tecla está segurada — correto para movimento, errado para interação.
+
+**Decisão:** o `InputManager` ganhou `wasActionJustPressed`, que só é verdadeiro no passo fixo em que a tecla foi pressionada, e `clearJustPressed()`, chamado pelo `GameCanvas` ao final de cada `update()`.
+
+**Motivo:** sem essa distinção, seria impossível diferenciar "apertei E uma vez" de "estou segurando E" — segurando a tecla, a interação dispararia a cada um dos ~60 passos fixos por segundo. O guard contra auto-repeat do sistema operacional (`if (!this.pressedKeys.has(event.code))` antes de marcar `justPressed`) garante que isso vale mesmo se o navegador reenviar `keydown` continuamente enquanto a tecla estiver fisicamente pressionada.
+
+### Estado de "ativado" de um objeto interagível fica fora de `content/regions.ts`
+
+**Decisão:** o `GameCanvas` guarda um `Map<string, boolean>` local para saber quais objetos interagíveis já foram ativados nesta sessão — os dados em `content/regions.ts` continuam sendo só a definição estática da região.
+
+**Motivo:** conteúdo (o que existe no mundo) e estado de runtime (o que o jogador já fez) são coisas diferentes. Misturá-los faria `content/regions.ts` deixar de ser dado estático puro, e futuramente dificultaria o save system (Fase 8) — que precisa serializar só o estado, não redefinir o mundo inteiro.
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).

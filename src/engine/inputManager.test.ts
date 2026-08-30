@@ -103,4 +103,39 @@ describe('InputManager', () => {
 
     expect(input.isActionPressed('moveUp')).toBe(false);
   });
+
+  it('marca a acao como recem-pressionada apenas na borda de subida', () => {
+    expect(input.wasActionJustPressed('interact')).toBe(false);
+
+    target.dispatch('keydown', keyEvent('KeyE'));
+
+    expect(input.wasActionJustPressed('interact')).toBe(true);
+  });
+
+  it('nao marca novamente enquanto a tecla continua pressionada (auto-repeat do SO)', () => {
+    target.dispatch('keydown', keyEvent('KeyE'));
+    input.clearJustPressed();
+
+    // navegadores reenviam keydown em auto-repeat sem um keyup entre eles
+    target.dispatch('keydown', keyEvent('KeyE'));
+
+    expect(input.wasActionJustPressed('interact')).toBe(false);
+  });
+
+  it('marca novamente apos soltar e pressionar de novo', () => {
+    target.dispatch('keydown', keyEvent('KeyE'));
+    input.clearJustPressed();
+    target.dispatch('keyup', keyEvent('KeyE'));
+
+    target.dispatch('keydown', keyEvent('KeyE'));
+
+    expect(input.wasActionJustPressed('interact')).toBe(true);
+  });
+
+  it('clearJustPressed reseta o estado de recem-pressionada', () => {
+    target.dispatch('keydown', keyEvent('KeyE'));
+    input.clearJustPressed();
+
+    expect(input.wasActionJustPressed('interact')).toBe(false);
+  });
 });

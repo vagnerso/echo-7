@@ -1,4 +1,5 @@
-export type GameAction = 'moveUp' | 'moveDown' | 'moveLeft' | 'moveRight';
+export type GameAction =
+  'moveUp' | 'moveDown' | 'moveLeft' | 'moveRight' | 'interact';
 
 export interface KeyEventLike {
   code: string;
@@ -21,6 +22,7 @@ const ACTION_TO_KEYS: Record<GameAction, readonly string[]> = {
   moveDown: ['KeyS', 'ArrowDown'],
   moveLeft: ['KeyA', 'ArrowLeft'],
   moveRight: ['KeyD', 'ArrowRight'],
+  interact: ['KeyE'],
 };
 
 const KEY_TO_ACTION = new Map<string, GameAction>();
@@ -39,6 +41,10 @@ export class InputManager {
   // mapeiam para a mesma acao (KeyW e ArrowUp -> moveUp) e uma delas e
   // solta, a acao so deve parar quando a ultima tecla que a ativa for solta.
   private readonly pressedKeys = new Set<string>();
+  // Acoes cuja tecla foi pressionada desde a ultima chamada a clearJustPressed
+  // (borda de subida) - para acoes tipo "interagir", que devem disparar uma
+  // vez por toque, nao uma vez por frame enquanto a tecla estiver segurada.
+  private readonly justPressedActions = new Set<GameAction>();
 
   constructor(target: EventTargetLike = window) {
     this.target = target;
@@ -53,16 +59,30 @@ export class InputManager {
     return ACTION_TO_KEYS[action].some((key) => this.pressedKeys.has(key));
   }
 
+  wasActionJustPressed(action: GameAction): boolean {
+    return this.justPressedActions.has(action);
+  }
+
+  /** Chamar uma vez ao final de cada passo fixo de simulacao, depois que todos os sistemas ja leram wasActionJustPressed. */
+  clearJustPressed(): void {
+    this.justPressedActions.clear();
+  }
+
   destroy(): void {
     this.target.removeEventListener('keydown', this.handleKeyDown);
     this.target.removeEventListener('keyup', this.handleKeyUp);
     this.target.removeEventListener('blur', this.handleBlur);
     this.pressedKeys.clear();
+    this.justPressedActions.clear();
   }
 
   private readonly handleKeyDown = (event: KeyEventLike): void => {
-    if (KEY_TO_ACTION.has(event.code)) {
+    const action = KEY_TO_ACTION.get(event.code);
+    if (action) {
       event.preventDefault?.();
+      if (!this.pressedKeys.has(event.code)) {
+        this.justPressedActions.add(action);
+      }
     }
     this.pressedKeys.add(event.code);
   };
