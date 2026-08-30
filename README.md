@@ -6,9 +6,9 @@ Jogo de exploração sci-fi para navegador. Você controla ECHO-7, um robô expl
 
 **[vagnerso.github.io/echo-7](https://vagnerso.github.io/echo-7/)**
 
-Roda direto no navegador, sem instalação. Requer teclado (sem suporte a touch/mobile nesta versão).
+Roda direto no navegador, sem instalação. Requer teclado (sem suporte a touch/mobile nesta versão). Disponível em **Inglês** (padrão) e **Português do Brasil**, com cor do robô customizável — ambos em Settings, no menu principal.
 
-**Controles:** `WASD`/setas para mover · `E` interagir · `Q` scanner · `I` inventário/upgrades/fragmentos.
+**Controles:** `WASD`/setas para mover · `E` interagir · `Q` scanner · `I` inventário/upgrades/fragmentos. Também exibidos na tela durante o jogo.
 
 ## 📸 Screenshots
 
@@ -22,7 +22,7 @@ Roda direto no navegador, sem instalação. Requer teclado (sem suporte a touch/
 
 ## 🧠 AI-Assisted Development
 
-Este projeto é usado deliberadamente como demonstração de **engenharia assistida por IA**, não como "vibe coding": design e arquitetura foram definidos e aprovados antes de qualquer código (Fase 0), o desenvolvimento avançou em dez fases pequenas e testáveis, e toda decisão técnica não óbvia foi documentada com o porquê — inclusive os bugs reais encontrados e corrigidos ao longo do caminho.
+Este projeto é usado deliberadamente como demonstração de **engenharia assistida por IA**, não como "vibe coding": design e arquitetura foram definidos e aprovados antes de qualquer código (Fase 0), o desenvolvimento avançou em fases pequenas e testáveis (dez para o MVP, mais outras depois do release), e toda decisão técnica não óbvia foi documentada com o porquê — inclusive os bugs reais encontrados e corrigidos ao longo do caminho.
 
 - [`docs/AI_DEVELOPMENT.md`](docs/AI_DEVELOPMENT.md) — a metodologia usada, com uma tabela de exemplos reais de onde a IA entrou (brainstorming, arquitetura, implementação, debugging, testes, refactoring, conteúdo, documentação).
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — registro de toda decisão técnica não óbvia, fase a fase, com contexto, alternativas consideradas e motivo.
@@ -73,7 +73,7 @@ npm run format     # formata o código (Prettier)
 
 ## 🧪 Testing
 
-Testes ficam ao lado do código testado (`arquivo.ts` + `arquivo.test.ts`), priorizando lógica de jogo pura (`engine/`, `systems/`, `state/`) — 107 testes automatizados no total. Ver critérios de teste em [`docs/DECISIONS.md`](docs/DECISIONS.md).
+Testes ficam ao lado do código testado (`arquivo.ts` + `arquivo.test.ts`), priorizando lógica de jogo pura (`engine/`, `systems/`, `state/`, `save/`) — 118 testes automatizados no total. Ver critérios de teste em [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 ## 📁 Project Structure
 
@@ -84,15 +84,19 @@ src/
   systems/       # lógica de gameplay pura (movimento, colisão, interação, scanner, puzzle, upgrades)
   entities/      # tipos das principais entidades (Player, Discovery, InventoryItem, Puzzle, Upgrade, MemoryFragment)
   world/         # modelo de região/tile/objeto e carregamento de mundo
-  content/       # dados estáticos do jogo (regiões, puzzles, upgrades, fragmentos)
-  state/         # stores Zustand (gameStore, uiStore)
-  save/          # persistência em localStorage, versionada
-  hooks/         # ponte entre React e a engine
+  content/       # dados estáticos do jogo (regiões, puzzles, upgrades, fragmentos, cores do robô) - só identidade, sem texto
+  i18n/          # dicionário de tradução (Inglês/Português-BR)
+  state/         # stores Zustand (gameStore, uiStore, settingsStore)
+  save/          # persistência em localStorage, versionada (progresso e preferências, separados)
+  styles/        # CSS compartilhado entre componentes de UI
+  hooks/         # ponte entre React e a engine/i18n
 ```
 
 Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para o propósito de cada pasta em detalhe.
 
 ## 🗺️ Roadmap
+
+**MVP (vertical slice):**
 
 - [x] Fase 0 — Planejamento (GDD, arquitetura, decisões técnicas)
 - [x] Fase 1 — Bootstrap (setup, canvas responsivo, game loop, tela inicial)
@@ -106,4 +110,10 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para o propósito de cada pas
 - [x] Fase 9 — Polish (partículas, transição de tela, áudio sintetizado)
 - [x] Fase 10 — Release (GitHub Pages, save/load, documentação final)
 
-A vertical slice está completa: dá para jogar do início (Landing Zone) até o final do primeiro arco narrativo (Signal Core), com progresso salvo automaticamente. Próximos passos possíveis: Região 4+ e continuação da história (o final termina com um gancho proposital), arte/sprites de verdade, controles mobile.
+**Pós-release:**
+
+- [x] Polish visual — robô com chassi/pernas/antena animados, terreno procedural por região, UI com estilo compartilhado (glow, cantos técnicos, scanline), painel de comandos na tela
+- [x] Internacionalização — Inglês (padrão) e Português do Brasil, dicionário customizado tipado, tela de Settings
+- [x] Customização — cor do robô (5 opções), preferências persistidas separadas do progresso de jogo
+
+A vertical slice está completa: dá para jogar do início (Landing Zone) até o final do primeiro arco narrativo (Signal Core), com progresso salvo automaticamente. Próximos passos possíveis: Região 4+ e continuação da história (o final termina com um gancho proposital), mais idiomas, sprites/arte de verdade (hoje 100% vetorial), controles mobile.

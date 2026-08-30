@@ -20,17 +20,20 @@ Game Systems                        (systems/ - movimento, colisao, interacao, s
 World / Entities / Content          (world/, entities/, content/)
 ```
 
-**Regra central:** o código de `engine/`, `systems/`, `entities/`, `world/` e `content/` nunca importa nada de React. Isso é o que torna a lógica de jogo testável sem precisar de DOM/jsdom — os 101 testes automatizados do projeto rodam contra essas camadas diretamente.
+**Regra central:** o código de `engine/`, `systems/`, `entities/`, `world/` e `content/` nunca importa nada de React. Isso é o que torna a lógica de jogo testável sem precisar de DOM/jsdom — os 118 testes automatizados do projeto (`environment: 'node'` no Vitest) rodam contra essas camadas, incluindo `state/` e `save/`, diretamente.
 
-## Estado: três lugares diferentes, de propósito
+## Estado: quatro lugares diferentes, de propósito
 
-| Onde | O quê | Exemplo |
-|---|---|---|
-| Refs dentro do `GameCanvas` | Estado "quente", muda a cada frame | posição do jogador, câmera, partículas |
-| `state/uiStore.ts` (Zustand) | Estado de tela, descartável | scanner ativo, inventário aberto, fragmento em exibição |
-| `state/gameStore.ts` (Zustand) | Progresso do jogador, permanente | inventário, upgrades instalados, puzzles resolvidos, região atual |
+| Onde | O quê | Exemplo | Sobrevive a NEW GAME? |
+|---|---|---|---|
+| Refs dentro do `GameCanvas` | Estado "quente", muda a cada frame | posição do jogador, câmera, partículas | não se aplica (recriado) |
+| `state/uiStore.ts` (Zustand) | Estado de tela, descartável | scanner ativo, inventário aberto, fragmento em exibição | não (`resetUi()`) |
+| `state/gameStore.ts` (Zustand) | Progresso do jogador, permanente dentro de uma partida | inventário, upgrades instalados, puzzles resolvidos, região atual, objetivo atual (`ObjectiveKey`) | não (`resetGame()`) |
+| `state/settingsStore.ts` (Zustand) | Preferência do dispositivo/jogador, entre partidas | idioma (`Locale`), cor do robô (`RobotColorKey`) | **sim** - não é progresso |
 
 Dados de alta frequência (posição, velocidade) nunca entram no Zustand: cada `set()` notifica componentes React inscritos, e fazer isso a ~60 vezes por segundo geraria re-renderizações desnecessárias. O `GameCanvas` lê/escreve as stores de forma imperativa (`getState()`/`setState()`) dentro do loop, e só quando um valor realmente muda — nunca via hook, que é para uso em render de componente.
+
+`gameStore`/`uiStore` persistem via `save/saveGame.ts` (localStorage, chave `echo7-save`, versionado); `settingsStore` persiste separadamente via `save/settingsStorage.ts` (chave `echo7-settings`) - de propósito, para uma preferência de idioma/cor nunca ser apagada por um NEW GAME nem acoplada ao versionamento do progresso de jogo.
 
 ## Game loop
 
@@ -44,7 +47,21 @@ Uma `Region` (`world/region.ts`) é um grid de tiles (`floor`/`wall`/`hazard`/`s
 
 Tiles `hazard` e `sealed` bloqueiam colisão condicionalmente - o primeiro até o jogador ter o upgrade Magnetic Boots, o segundo até um puzzle ser resolvido. O `GameCanvas` monta a lista de obstáculos de cada frame combinando paredes (sempre) com esses tiles condicionais, consultando a `gameStore`.
 
-`content/` guarda os dados de verdade (as três regiões, os puzzles, os upgrades, os fragmentos de memória) - sempre estático e imutável; qualquer coisa que mude durante uma partida (o que já foi coletado, ativado, resolvido) vive em estado de sessão (refs do `GameCanvas`) ou na `gameStore`, nunca mutando o conteúdo.
+`content/` guarda os dados de verdade (as três regiões, os puzzles, os upgrades, os fragmentos de memória, as paletas de cor do robô) - sempre estático e imutável; qualquer coisa que mude durante uma partida (o que já foi coletado, ativado, resolvido) vive em estado de sessão (refs do `GameCanvas`) ou na `gameStore`, nunca mutando o conteúdo. **Texto de exibição não mora em `content/`:** `WorldObject`, `InventoryItem`, `Upgrade` e `MemoryFragment` guardam só identidade (`id`) - o texto (nome, descrição, narrativa) é resolvido em `i18n/` por esse `id`, no idioma atual. Ver seção seguinte.
+
+## Internacionalização (i18n) e preferências
+
+Suporte a dois idiomas (Inglês, padrão; Português do Brasil) via dicionário customizado tipado, sem biblioteca - `i18n/translations.ts` define a interface `Translations` (o formato completo de todo texto do jogo), e `i18n/en.ts`/`i18n/ptBR.ts` a implementam. Como consequência, esquecer uma chave em qualquer um dos dois idiomas é **erro de compilação**, não bug em runtime.
+
+```
+state/settingsStore.ts (locale atual)
+   |
+hooks/useTranslations.ts  -->  TRANSLATIONS[locale]  (i18n/index.ts)
+   |
+componentes React (t.mainMenu.title, t.items[id], t.objectives[key], ...)
+```
+
+Conteúdo de jogo (`content/*.ts`) guarda só `id`s estáveis; os componentes resolvem o texto correspondente no dicionário (`t.items[id]`, `t.upgrades[id]`, `t.fragments[id]`, `t.scanInfo[objectId]`) sempre no idioma atual, nunca lendo texto pré-computado de dados salvos - isso evita que um objeto escaneado (ou uma missão) fique "preso" no idioma de quando o evento aconteceu. Detalhes e alternativas descartadas em [`DECISIONS.md`](DECISIONS.md) ("Internacionalização").
 
 ## Estrutura de pastas
 
@@ -55,11 +72,15 @@ src/
   systems/       # lógica de gameplay pura (movimento, colisão, interação, scanner, puzzle, upgrades)
   entities/      # tipos das principais entidades (Player, Discovery, InventoryItem, Puzzle, Upgrade, MemoryFragment)
   world/         # modelo de região/tile/objeto e funções de carregamento (worldLoader)
-  content/       # dados estáticos do jogo (regiões, puzzles, upgrades, fragmentos)
-  state/         # stores Zustand (gameStore, uiStore)
-  hooks/         # ponte entre React e a engine (useGameLoop)
-  assets/        # (reservado; nenhum asset de imagem/áudio ainda - tudo é desenhado por código ou sintetizado)
+  content/       # dados estáticos do jogo (regiões, puzzles, upgrades, fragmentos, paletas de cor do robô) - só id/identidade, nunca texto de exibição
+  i18n/          # dicionário de traducão (Locale, Translations, en.ts, ptBR.ts)
+  state/         # stores Zustand (gameStore, uiStore, settingsStore)
+  save/          # persistência em localStorage (progresso versionado + preferências, separados)
+  styles/        # CSS compartilhado entre componentes de UI (composes do CSS Modules)
+  hooks/         # ponte entre React e a engine/i18n (useGameLoop, useTranslations)
 ```
+
+Não há pasta `assets/`: nenhum sprite/imagem/arquivo de áudio no projeto - decisão de arquitetura desde a Fase 0/1, reafirmada no polish visual pós-release (ver [`DECISIONS.md`](DECISIONS.md)). Tudo é desenhado via Canvas 2D ou sintetizado via Web Audio API.
 
 Cada arquivo `*.test.ts` fica ao lado do arquivo testado (ver [`DECISIONS.md`](DECISIONS.md), decisão da Fase 1.1).
 
