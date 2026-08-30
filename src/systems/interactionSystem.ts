@@ -13,7 +13,7 @@ export function findNearestInteractable(
   let nearestDistance = Infinity;
 
   for (const object of objects) {
-    if (object.kind !== 'interactable') continue;
+    if (!object.interactable) continue;
 
     const distance = Math.hypot(
       object.position.x - playerPosition.x,

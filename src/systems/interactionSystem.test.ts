@@ -5,11 +5,11 @@ import type { WorldObject } from '@/world/region';
 import { findNearestInteractable } from './interactionSystem';
 
 function interactable(id: string, x: number, y: number): WorldObject {
-  return { id, kind: 'interactable', position: { x, y } };
+  return { id, interactable: true, position: { x, y } };
 }
 
 function decoration(id: string, x: number, y: number): WorldObject {
-  return { id, kind: 'decoration', position: { x, y } };
+  return { id, position: { x, y } };
 }
 
 describe('findNearestInteractable', () => {

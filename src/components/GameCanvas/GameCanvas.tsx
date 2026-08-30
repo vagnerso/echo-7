@@ -15,6 +15,12 @@ import type { AABB } from '@/systems/collisionSystem';
 import { resolveCollisions } from '@/systems/collisionSystem';
 import { findNearestInteractable } from '@/systems/interactionSystem';
 import { updatePlayerMovement } from '@/systems/movementSystem';
+import {
+  createDiscoveryFromObject,
+  findNearestScannable,
+} from '@/systems/scannerSystem';
+import { useGameStore } from '@/state/gameStore';
+import { useUiStore } from '@/state/uiStore';
 import type { Region, WorldObject } from '@/world/region';
 import { getRegionObstacles } from '@/world/worldLoader';
 
@@ -29,7 +35,8 @@ const WALL_BORDER_COLOR = 'rgba(94, 230, 200, 0.4)';
 const DECORATION_COLOR = 'rgba(216, 219, 226, 0.5)';
 const INTERACTABLE_COLOR = 'rgba(230, 170, 94, 0.7)';
 const INTERACTABLE_ACTIVATED_COLOR = 'rgba(94, 230, 140, 0.8)';
-const INTERACTABLE_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.9)';
+const HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.9)';
+const SCANNABLE_COLOR = 'rgba(120, 170, 255, 0.7)';
 
 function renderPlayer(
   ctx: CanvasRenderingContext2D,
@@ -92,7 +99,7 @@ function renderDecorations(
   ctx.fillStyle = DECORATION_COLOR;
 
   for (const object of region.objects) {
-    if (object.kind !== 'decoration') continue;
+    if (object.interactable || object.scannable) continue;
 
     const screenPosition = worldToScreen(
       object.position,
@@ -116,7 +123,7 @@ function renderInteractables(
   canvasHeight: number,
 ): void {
   for (const object of region.objects) {
-    if (object.kind !== 'interactable') continue;
+    if (!object.interactable) continue;
 
     const screenPosition = worldToScreen(
       object.position,
@@ -126,7 +133,7 @@ function renderInteractables(
     );
 
     if (object.id === nearestId) {
-      ctx.strokeStyle = INTERACTABLE_HIGHLIGHT_COLOR;
+      ctx.strokeStyle = HIGHLIGHT_COLOR;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(screenPosition.x, screenPosition.y, 14, 0, Math.PI * 2);
@@ -142,6 +149,44 @@ function renderInteractables(
   }
 }
 
+function renderScannables(
+  ctx: CanvasRenderingContext2D,
+  region: Region,
+  nearestId: string | null,
+  camera: Camera,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  for (const object of region.objects) {
+    if (!object.scannable) continue;
+
+    const screenPosition = worldToScreen(
+      object.position,
+      camera,
+      canvasWidth,
+      canvasHeight,
+    );
+
+    if (object.id === nearestId) {
+      ctx.strokeStyle = HIGHLIGHT_COLOR;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(screenPosition.x, screenPosition.y, 16, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Losango em vez de circulo: diferencia visualmente de interactable ate existir arte de verdade (Fase 9).
+    ctx.fillStyle = SCANNABLE_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(screenPosition.x, screenPosition.y - 10);
+    ctx.lineTo(screenPosition.x + 10, screenPosition.y);
+    ctx.lineTo(screenPosition.x, screenPosition.y + 10);
+    ctx.lineTo(screenPosition.x - 10, screenPosition.y);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
 export function GameCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -150,6 +195,7 @@ export function GameCanvas() {
   const cameraRef = useRef<Camera>(createCamera({ x: 200, y: 200 }));
   const inputRef = useRef<InputManager | null>(null);
   const nearestInteractableRef = useRef<WorldObject | null>(null);
+  const nearestScannableRef = useRef<WorldObject | null>(null);
   const activatedInteractablesRef = useRef<Map<string, boolean>>(new Map());
 
   useEffect(() => {
@@ -204,15 +250,48 @@ export function GameCanvas() {
       player.position.x = resolved.x;
       player.position.y = resolved.y;
 
-      const nearest = findNearestInteractable(
+      const nearestInteractable = findNearestInteractable(
         player.position,
         CURRENT_REGION.objects,
       );
-      nearestInteractableRef.current = nearest;
+      nearestInteractableRef.current = nearestInteractable;
 
-      if (nearest && input.wasActionJustPressed('interact')) {
+      if (nearestInteractable && input.wasActionJustPressed('interact')) {
         const activated = activatedInteractablesRef.current;
-        activated.set(nearest.id, !activated.get(nearest.id));
+        activated.set(
+          nearestInteractable.id,
+          !activated.get(nearestInteractable.id),
+        );
+      }
+
+      if (input.wasActionJustPressed('scanner')) {
+        useUiStore.getState().toggleScanner();
+      }
+
+      const isScannerActive = useUiStore.getState().isScannerActive;
+      const nearestScannable = isScannerActive
+        ? findNearestScannable(player.position, CURRENT_REGION.objects)
+        : null;
+      nearestScannableRef.current = nearestScannable;
+
+      // So escreve na store quando o alvo realmente muda - evita disparar
+      // re-render dos componentes inscritos a cada um dos ~60 passos por
+      // segundo (mesmo raciocinio ja aplicado a outras leituras de estado).
+      const previousTarget = useUiStore.getState().currentScanTarget;
+      const newTargetId = nearestScannable?.id ?? null;
+      if (previousTarget?.objectId !== newTargetId) {
+        if (nearestScannable) {
+          const discovery = createDiscoveryFromObject(
+            nearestScannable,
+            CURRENT_REGION.id,
+          );
+          useUiStore.getState().setCurrentScanTarget(discovery);
+          if (discovery) {
+            useGameStore.getState().addDiscovery(discovery);
+          }
+        } else {
+          useUiStore.getState().setCurrentScanTarget(null);
+        }
       }
 
       input.clearJustPressed();
@@ -248,6 +327,14 @@ export function GameCanvas() {
         CURRENT_REGION,
         activatedInteractablesRef.current,
         nearestInteractableRef.current?.id ?? null,
+        camera,
+        canvas.width,
+        canvas.height,
+      );
+      renderScannables(
+        ctx,
+        CURRENT_REGION,
+        nearestScannableRef.current?.id ?? null,
         camera,
         canvas.width,
         canvas.height,

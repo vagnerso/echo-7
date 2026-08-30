@@ -35,18 +35,26 @@ export const LANDING_ZONE: Region = {
   objects: [
     {
       id: 'decoration-01',
-      kind: 'decoration',
       position: { x: 5 * TILE_SIZE, y: 5 * TILE_SIZE },
     },
     {
       id: 'decoration-02',
-      kind: 'decoration',
       position: { x: 16 * TILE_SIZE, y: 10 * TILE_SIZE },
     },
     {
       id: 'console-01',
-      kind: 'interactable',
+      interactable: true,
       position: { x: 8 * TILE_SIZE, y: 10 * TILE_SIZE },
+    },
+    {
+      id: 'unknown-structure-01',
+      scannable: true,
+      position: { x: 10 * TILE_SIZE, y: 2 * TILE_SIZE },
+      scanInfo: {
+        label: 'UNKNOWN STRUCTURE',
+        age: '~8,000 years',
+        material: 'UNKNOWN',
+      },
     },
   ],
 };

@@ -58,8 +58,8 @@ A estrutura completa está detalhada em [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - [x] Fase 1 — Bootstrap (setup, canvas responsivo, game loop, tela inicial)
 - [x] Fase 2 — Robot (ECHO-7, movimento, câmera, colisão)
 - [x] Fase 3 — World (mapa, tiles, interação)
-- [ ] Fase 4 — Scanner *(em andamento)*
-- [ ] Fase 5 — Inventory
+- [x] Fase 4 — Scanner
+- [ ] Fase 5 — Inventory *(em andamento)*
 - [ ] Fase 6 — Upgrades
 - [ ] Fase 7 — Puzzles
 - [ ] Fase 8 — Narrative (Memory Fragments, missão, final da vertical slice)

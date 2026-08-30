@@ -2,16 +2,26 @@ import type { Vector2 } from '@/entities/player';
 
 export type TileType = 'floor' | 'wall';
 
+export interface ScanInfo {
+  label: string;
+  age?: string;
+  material?: string;
+}
+
+/**
+ * Um objeto pode acumular capacidades (ex: interagivel E escaneavel ao mesmo
+ * tempo) - por isso sao flags, nao um "kind" excludente. Um objeto sem
+ * nenhuma flag e so decoracao visual, sem comportamento.
+ */
 export interface WorldObject {
   id: string;
   position: Vector2;
-  /**
-   * 'decoration': nao colide, sem interacao - so referencia visual ate ter
-   * arte de verdade (Fase 9). 'interactable': responde a tecla E dentro do
-   * alcance (Fase 3.3). O que a interacao faz de fato (abrir, escanear,
-   * revelar texto) entra nas Fases 4+.
-   */
-  kind: 'decoration' | 'interactable';
+  /** Responde a tecla E dentro do alcance de interacao (Fase 3.3). */
+  interactable?: boolean;
+  /** Aparece no scanner (tecla Q) dentro do alcance de scan (Fase 4). */
+  scannable?: boolean;
+  /** Dados exibidos no painel do scanner. Presente quando scannable=true. */
+  scanInfo?: ScanInfo;
 }
 
 export interface Region {

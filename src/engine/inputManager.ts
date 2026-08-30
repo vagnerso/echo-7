@@ -1,5 +1,5 @@
 export type GameAction =
-  'moveUp' | 'moveDown' | 'moveLeft' | 'moveRight' | 'interact';
+  'moveUp' | 'moveDown' | 'moveLeft' | 'moveRight' | 'interact' | 'scanner';
 
 export interface KeyEventLike {
   code: string;
@@ -23,6 +23,7 @@ const ACTION_TO_KEYS: Record<GameAction, readonly string[]> = {
   moveLeft: ['KeyA', 'ArrowLeft'],
   moveRight: ['KeyD', 'ArrowRight'],
   interact: ['KeyE'],
+  scanner: ['KeyQ'],
 };
 
 const KEY_TO_ACTION = new Map<string, GameAction>();

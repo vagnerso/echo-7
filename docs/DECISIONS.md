@@ -266,6 +266,46 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Motivo:** conteúdo (o que existe no mundo) e estado de runtime (o que o jogador já fez) são coisas diferentes. Misturá-los faria `content/regions.ts` deixar de ser dado estático puro, e futuramente dificultaria o save system (Fase 8) — que precisa serializar só o estado, não redefinir o mundo inteiro.
 
+## Fase 4 — Scanner
+
+### `WorldObject.kind` (enum) vira flags de capacidade (`interactable?`, `scannable?`)
+
+**Contexto:** até a Fase 3, um objeto tinha `kind: 'decoration' | 'interactable'`, um enum excludente. O scanner precisava de um terceiro tipo (`scannable`).
+
+**Decisão:** trocar por flags booleanas independentes (`interactable?: boolean`, `scannable?: boolean`); um objeto sem nenhuma é decoração pura.
+
+**Motivo:** um enum não permite um objeto ser ao mesmo tempo interagível e escaneável (ex: um console que se escaneia para aprender sobre ele e se interage para ativar) — plausível no jogo real, dado que a seção 5 do prompt mestre mostra o scanner usado sobre o mesmo tipo de estrutura que consoles/mecanismos interagíveis. Refatorar agora, com um único objeto de cada tipo existindo, é muito mais barato que fazer depois com dezenas de objetos de conteúdo.
+
+### Zustand introduzido agora (`gameStore`, `uiStore`)
+
+**Contexto:** desde a Fase 1.4/2, a decisão era não usar Zustand até que um estado precisasse ser lido por mais de um consumidor. O scanner é o primeiro caso real: a engine (dentro do `GameCanvas`) detecta o alvo escaneado, e um componente de UI novo (`ScannerOverlay`) precisa exibi-lo.
+
+**Decisão:** `state/uiStore.ts` guarda `isScannerActive` e `currentScanTarget` (efêmero, não persiste); `state/gameStore.ts` guarda `discoveries` (o "codex" permanente). Consistente com a distinção Game State / UI State já prevista na Fase 0.
+
+**Motivo da separação entre as duas stores:** "scanner ativo" e "o que está sendo mostrado agora" são estado de tela, descartável a qualquer momento; "o que já foi descoberto" é progresso do jogador, que o save system (Fase 8) vai precisar persistir. Misturar as duas obrigaria decidir manualmente o que salvar e o que não salvar de dentro de uma store só.
+
+### `GameCanvas` escreve nas stores via `getState()`/`setState()`, nunca via hook
+
+**Contexto:** o código que decide o que escrever nas stores roda dentro do callback `update()` do game loop, não durante a renderização do componente React.
+
+**Decisão:** usar a API estática do Zustand (`useUiStore.getState()`, `useGameStore.getState().addDiscovery(...)`) nesse trecho, em vez do hook (`useUiStore()`).
+
+**Motivo:** o hook serve para inscrever um componente a re-renderizar quando o estado muda — é para uso durante o render do React. Dentro de `update()`, que roda a ~60Hz fora do ciclo de render, ler/escrever a store precisa ser uma chamada imperativa direta, sem inscrição.
+
+### Store só é escrita quando o alvo do scanner muda, não a cada passo fixo
+
+**Decisão:** `GameCanvas` compara o alvo escaneado atual com o anterior (`previousTarget?.objectId !== newTargetId`) antes de chamar `setCurrentScanTarget`/`addDiscovery`.
+
+**Motivo:** mesmo raciocínio já aplicado à posição do jogador (Fase 0/1.4) - escrever na store a cada um dos ~60 passos fixos por segundo dispararia re-render do `ScannerOverlay` na mesma frequência, mesmo quando nada mudou de fato para o jogador ver.
+
+### Sem botão [ANALYZE]: detecção por alcance já mostra o resultado
+
+**Contexto:** o mockup da seção 5 do prompt mestre mostra um botão `[ANALYZE]` no painel do scanner, sugerindo um passo de confirmação manual.
+
+**Decisão:** o painel mostra o resultado assim que o objeto entra em alcance com o modo scanner ativo - sem clique extra.
+
+**Motivo:** o roadmap desta fase pede "detecção por raio" e "geração de discovery" (seções 4.1 e 4.3), não um fluxo de confirmação em múltiplas etapas. Adicionar isso agora seria escopo além do que foi pedido; pode ser revisitado se o playtest mostrar que falta alguma intenção do jogador antes de "gastar" a descoberta.
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).
