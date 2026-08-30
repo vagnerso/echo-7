@@ -6,7 +6,7 @@ import { findInstallableUpgrades } from '@/systems/upgradeSystem';
 import { useGameStore } from './gameStore';
 
 function discovery(id: string): Discovery {
-  return { id, objectId: id, label: 'TEST OBJECT', scannedAt: 'region-1' };
+  return { id, objectId: id, scannedAt: 'region-1' };
 }
 
 describe('gameStore', () => {
@@ -19,7 +19,7 @@ describe('gameStore', () => {
       currentRegionId: 'region-1',
       solvedPuzzles: new Set(),
       collectedFragments: new Set(),
-      currentObjective: 'Explore the Landing Zone.',
+      currentObjective: 'exploreLandingZone',
       hasReachedEnding: false,
     });
   });
@@ -51,7 +51,6 @@ describe('gameStore', () => {
     const added = useGameStore.getState().addItem({
       id: 'energy-cell',
       type: 'resource',
-      name: 'Energy Cell',
       stackable: true,
     });
 
@@ -60,7 +59,6 @@ describe('gameStore', () => {
       {
         id: 'energy-cell',
         type: 'resource',
-        name: 'Energy Cell',
         stackable: true,
         quantity: 1,
       },
@@ -71,13 +69,11 @@ describe('gameStore', () => {
     useGameStore.getState().addItem({
       id: 'energy-cell',
       type: 'resource',
-      name: 'Energy Cell',
       stackable: true,
     });
     useGameStore.getState().addItem({
       id: 'energy-cell',
       type: 'resource',
-      name: 'Energy Cell',
       stackable: true,
     });
 
@@ -89,13 +85,11 @@ describe('gameStore', () => {
     useGameStore.getState().addItem({
       id: 'artifact',
       type: 'quest',
-      name: 'Artifact',
       stackable: false,
     });
     const added = useGameStore.getState().addItem({
       id: 'artifact',
       type: 'quest',
-      name: 'Artifact',
       stackable: false,
     });
 
@@ -107,14 +101,14 @@ describe('gameStore', () => {
     useGameStore.setState({ inventoryCapacity: 2 });
     useGameStore
       .getState()
-      .addItem({ id: 'a', type: 'resource', name: 'A', stackable: true });
+      .addItem({ id: 'a', type: 'resource', stackable: true });
     useGameStore
       .getState()
-      .addItem({ id: 'b', type: 'resource', name: 'B', stackable: true });
+      .addItem({ id: 'b', type: 'resource', stackable: true });
 
     const added = useGameStore
       .getState()
-      .addItem({ id: 'c', type: 'resource', name: 'C', stackable: true });
+      .addItem({ id: 'c', type: 'resource', stackable: true });
 
     expect(added).toBe(false);
     expect(useGameStore.getState().inventory).toHaveLength(2);
@@ -125,14 +119,12 @@ describe('gameStore', () => {
     useGameStore.getState().addItem({
       id: 'energy-cell',
       type: 'resource',
-      name: 'Energy Cell',
       stackable: true,
     });
 
     const added = useGameStore.getState().addItem({
       id: 'energy-cell',
       type: 'resource',
-      name: 'Energy Cell',
       stackable: true,
     });
 
@@ -144,7 +136,6 @@ describe('gameStore', () => {
     useGameStore.getState().addItem({
       id: 'energy-cell',
       type: 'resource',
-      name: 'Energy Cell',
       stackable: true,
       quantity: 3,
     });
@@ -177,7 +168,6 @@ describe('gameStore', () => {
     useGameStore.getState().addItem({
       id: 'ancient-component',
       type: 'component',
-      name: 'Ancient Component',
       stackable: true,
       quantity: 1,
     });
@@ -233,10 +223,10 @@ describe('gameStore', () => {
   });
 
   it('setObjective atualiza o objetivo atual', () => {
-    useGameStore.getState().setObjective('Find a way into the ruins.');
+    useGameStore.getState().setObjective('findWayToSignalCore');
 
     expect(useGameStore.getState().currentObjective).toBe(
-      'Find a way into the ruins.',
+      'findWayToSignalCore',
     );
   });
 
@@ -253,7 +243,7 @@ describe('gameStore', () => {
     useGameStore.getState().collectFragment('fragment-01');
     useGameStore
       .getState()
-      .addItem({ id: 'a', type: 'resource', name: 'A', stackable: true });
+      .addItem({ id: 'a', type: 'resource', stackable: true });
     useGameStore.getState().installUpgrade('deep-scanner');
 
     useGameStore.getState().resetGame();
@@ -262,7 +252,7 @@ describe('gameStore', () => {
       hasReachedEnding: false,
       currentRegionId: 'region-1',
       inventory: [],
-      currentObjective: 'Explore the Landing Zone.',
+      currentObjective: 'exploreLandingZone',
     });
     expect(useGameStore.getState().solvedPuzzles.size).toBe(0);
     expect(useGameStore.getState().collectedFragments.size).toBe(0);

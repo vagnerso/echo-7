@@ -5,7 +5,7 @@ import type { InventoryItem } from '@/entities/inventoryItem';
 import { findInstallableUpgrades } from './upgradeSystem';
 
 function item(id: string, quantity: number): InventoryItem {
-  return { id, type: 'component', name: id, stackable: true, quantity };
+  return { id, type: 'component', stackable: true, quantity };
 }
 
 describe('findInstallableUpgrades', () => {

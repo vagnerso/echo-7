@@ -589,3 +589,45 @@ Com o MVP completo (Fases 0-10), o roadmap original não previa uma passada de a
 **Motivo:** `engine/inputManager.ts` já é a fonte de verdade sobre o que cada tecla faz - fazer a UI ler dali (em vez de replicar o conhecimento) é a mesma ideia de "single source of truth" já aplicada em outros pontos do projeto (ex: `SEALED_TILE_PUZZLE_ID`), e elimina uma categoria inteira de bug (UI desatualizada em relação ao input real).
 
 **Posicionamento:** canto inferior esquerdo, único canto ainda livre entre os HUDs existentes (Scanner ocupa o superior esquerdo, Mission o superior direito, revelação de fragmento o inferior central). Painel sempre visível durante o gameplay (mesmo padrão de Mission/Scanner: `pointer-events: none`, sem toggle) - mais simples do que introduzir uma tecla de "ajuda" dedicada, e a lista é curta o bastante para não poluir a tela.
+
+## Internacionalização (Inglês/Português-BR) e tela de Settings
+
+Pedido do desenvolvedor: o jogo passa a suportar dois idiomas (Inglês, padrão; Português do Brasil), configurável numa tela de Settings nova. Levantamento inicial mostrou que o volume real de texto do jogo está concentrado no *conteúdo* (`content/*.ts`), não na UI de botões - e que a UI já misturava inglês com português sem querer (algumas descrições de upgrade e mensagens do inventário já estavam em PT-BR, soltas). Esta fase corrige essa inconsistência ao mesmo tempo que introduz o sistema de idiomas.
+
+### Dicionário customizado, sem biblioteca de i18n
+
+**Contexto:** bibliotecas como `react-i18next` resolvem pluralização, interpolação avançada, detecção de idioma do navegador, carregamento assíncrono de traduções, etc.
+
+**Decisão:** um dicionário próprio (`src/i18n/`) - uma interface `Translations` (tipo) descrevendo o formato completo da UI e do conteúdo, e dois arquivos (`en.ts`, `ptBR.ts`) que implementam essa interface. Um hook `useTranslations()` (`src/hooks/useTranslations.ts`) lê o idioma atual do `settingsStore` e devolve o dicionário inteiro; componentes destroem direto (`t.mainMenu.title`), sem uma função `t(chave)` genérica.
+
+**Alternativas consideradas:** `react-i18next` (ou similar) - descartada por adicionar dependência nova, mais uma camada de configuração (namespaces, carregadores, contexto de provider) e recursos (plural complexo, interpolação ICU, `Suspense` para carregamento assíncrono) que este jogo não precisa - todo o texto é estático, conhecido em build time, sem plural nem gênero variável relevante além de um `%` e algumas contagens simples, resolvidos com funções comuns (`slots: (count, capacity) => ...`) em vez de um mini-motor de template.
+
+**Motivo:** confirmado com o desenvolvedor antes de implementar (pergunta explícita sobre abordagem). O ganho de segurança de uma lib de verdade (chave faltando não quebra o build, só falha em runtime com um `key not found`) é justamente invertido aqui: como `en`/`ptBR` são tipados como `Translations`, **esquecer uma chave em qualquer um dos dois idiomas é erro de compilação**, não bug em produção - o TypeScript faz o trabalho que a lib faria em runtime, de graça, porque o dicionário é só dado estático.
+
+### `settingsStore` separado de `gameStore`/`uiStore`, com sua própria persistência
+
+**Contexto:** idioma (e futuramente cor do robô) são preferências do dispositivo/jogador, não progresso de uma partida.
+
+**Decisão:** um novo `state/settingsStore.ts` (Zustand), com persistência própria em `save/settingsStorage.ts` (chave `echo7-settings` no localStorage, versionada, mesmo padrão `StorageLike` injetável já usado em `save/saveGame.ts` - inclusive reaproveita o mesmo tipo `StorageLike`, importado de lá). `resetGame()`/`resetUi()` (disparados por NEW GAME) nunca tocam nesse store.
+
+**Alternativas consideradas:** guardar `locale` dentro da `gameStore` (junto do progresso) ou da `uiStore` (junto do estado efêmero) - ambas descartadas: a primeira faria NEW GAME resetar o idioma escolhido (e poluiria o formato de save versionado com uma preferência que não é progresso); a segunda faria a preferência se perder a cada `resetUi()`, que hoje roda tanto em NEW GAME quanto em CONTINUE.
+
+**Detalhe técnico:** a leitura inicial (`loadSettings()`) acontece uma única vez, síncrona, no momento em que o módulo `settingsStore.ts` é importado (não num `useEffect`) - assim a tela de menu já nasce no idioma salvo, sem um frame piscando em inglês antes de aplicar a preferência. A gravação (`saveSettings`) fica a cargo de um `useSettingsStore.subscribe(...)` em `App.tsx` (não dentro do próprio store) - mesmo padrão de autosave-via-`subscribe` já usado para o progresso (Fase 10), e colocado em `App.tsx` (não em `GameCanvas.tsx`, como o do progresso) porque a preferência de idioma precisa valer já na tela de menu, antes de qualquer partida começar.
+
+### Conteúdo passa a guardar só identidade (`id`), nunca texto de exibição
+
+**Contexto:** `content/regions.ts`, `content/upgrades.ts` e `content/fragments.ts` guardavam o texto em inglês (às vezes em português, por engano) direto nos dados - `name: 'Energy Cell'`, `label: 'UNKNOWN STRUCTURE'`, `text: 'Log 03 - ...'`. Para dois idiomas, esse texto não pode morar nos dados: precisa ser resolvido no idioma atual, na hora de renderizar.
+
+**Decisão:** remover todo campo de texto de exibição de `InventoryItem`, `Upgrade`, `MemoryFragment` e do (agora extinto) `ScanInfo`; manter só `id`s estáveis. As telas resolvem o texto via `t.items[id]`, `t.upgrades[id]`, `t.fragments[id]`, `t.scanInfo[objectId]` no idioma atual. `WorldObject.scanInfo?: ScanInfo` virou `WorldObject.requiresDeepScanner?: boolean` direto (o objeto-wrapper não tinha mais motivo de existir sem nenhum campo de texto dentro).
+
+**Efeito colateral desejado - `Discovery` (o "log" de objetos escaneados, salvo em `gameStore.discoveries`) também perdeu `label`/`age`/`material`:** antes, esses campos eram copiados do `scanInfo` no momento do scan e ficavam congelados no idioma de quando o jogador escaneou aquele objeto - um jogador que escaneasse algo em português e depois trocasse para inglês veria essa entrada específica presa em português para sempre (se essa lista algum dia ganhar uma tela própria). Agora `Discovery` guarda só `objectId`, e qualquer UI futura que a exiba resolveria o texto ao vivo, sempre no idioma atual - o mesmo princípio já aplicado ao `ScannerOverlay` ao vivo.
+
+**Objetivo da missão (`currentObjective`) virou `ObjectiveKey`, não mais a sentença:** `gameStore.setObjective`/`currentObjective` guardam uma chave simbólica (`'investigateAncientRuins'`, etc.), tipada contra o union `ObjectiveKey` exportado de `src/i18n` - um erro de digitação numa chamada `setObjective(...)` em `GameCanvas.tsx` vira erro de compilação, não uma missão com texto errado em produção. Um save antigo (de antes desta mudança) trazia a sentença literal em inglês no lugar da chave; `MissionHUD` trata isso com um fallback (`t.objectives[key] ?? key`) - o jogador só veria a sentença antiga sem tradução, nunca uma tela quebrada.
+
+**Alternativa considerada:** manter o texto nos dados e só *adicionar* uma camada de tradução por cima (um mapa `texto em inglês -> texto em português`) - descartada por ser frágil (qualquer mudança de pontuação/capitalização no texto original quebra o mapeamento) e por preservar a causa raiz do problema (dado e apresentação continuariam acoplados).
+
+### Testes: remover o campo, não só ignorá-lo
+
+**Decisão:** todos os testes que construíam `InventoryItem`/`Upgrade`/`MemoryFragment`/`Discovery`/`ScanInfo` com um campo de texto (`name`, `label`, `text`, etc.) tiveram esse campo removido do fixture, em vez de deixado ali sem uso.
+
+**Motivo:** com os tipos atualizados, manter esses campos nos testes teria sido um erro de compilação (excess property check do TypeScript em literais de objeto) - a correção "obrigatória" coincidiu com uma simplificação real dos fixtures de teste (menos campos para configurar em cada um).

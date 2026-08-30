@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import type { Discovery } from '@/entities/discovery';
 import type { InventoryItem } from '@/entities/inventoryItem';
+import type { ObjectiveKey } from '@/i18n';
 
 const DEFAULT_INVENTORY_CAPACITY = 5;
 
@@ -16,7 +17,9 @@ interface GameProgress {
   currentRegionId: string;
   solvedPuzzles: ReadonlySet<string>;
   collectedFragments: ReadonlySet<string>;
-  currentObjective: string;
+  // Chave de traducao (src/i18n), nao a sentenca em si - MissionHUD resolve
+  // o texto no idioma atual via t.objectives[currentObjective].
+  currentObjective: ObjectiveKey;
   hasReachedEnding: boolean;
 }
 
@@ -29,7 +32,7 @@ function createInitialProgress(): GameProgress {
     currentRegionId: 'region-1',
     solvedPuzzles: new Set<string>(),
     collectedFragments: new Set<string>(),
-    currentObjective: 'Explore the Landing Zone.',
+    currentObjective: 'exploreLandingZone',
     hasReachedEnding: false,
   };
 }
@@ -51,7 +54,7 @@ interface GameState extends GameProgress {
 
   collectFragment: (id: string) => void;
 
-  setObjective: (text: string) => void;
+  setObjective: (key: ObjectiveKey) => void;
 
   triggerEnding: () => void;
 
@@ -148,7 +151,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  setObjective: (text) => set({ currentObjective: text }),
+  setObjective: (key) => set({ currentObjective: key }),
 
   triggerEnding: () => set({ hasReachedEnding: true }),
 

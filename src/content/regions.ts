@@ -70,11 +70,6 @@ export const LANDING_ZONE: Region = {
       id: 'unknown-structure-01',
       scannable: true,
       position: { x: 10 * TILE_SIZE, y: 2 * TILE_SIZE },
-      scanInfo: {
-        label: 'UNKNOWN STRUCTURE',
-        age: '~8,000 years',
-        material: 'UNKNOWN',
-      },
     },
     {
       id: 'energy-cell-pickup-01',
@@ -83,7 +78,6 @@ export const LANDING_ZONE: Region = {
       collectible: {
         id: 'energy-cell',
         type: 'resource',
-        name: 'Energy Cell',
         stackable: true,
         quantity: 1,
       },
@@ -95,7 +89,6 @@ export const LANDING_ZONE: Region = {
       collectible: {
         id: 'energy-cell',
         type: 'resource',
-        name: 'Energy Cell',
         stackable: true,
         quantity: 1,
       },
@@ -107,7 +100,6 @@ export const LANDING_ZONE: Region = {
       collectible: {
         id: 'ancient-component',
         type: 'component',
-        name: 'Ancient Component',
         stackable: true,
         quantity: 1,
       },
@@ -119,7 +111,6 @@ export const LANDING_ZONE: Region = {
       collectible: {
         id: 'ancient-component',
         type: 'component',
-        name: 'Ancient Component',
         stackable: true,
         quantity: 1,
       },
@@ -127,12 +118,8 @@ export const LANDING_ZONE: Region = {
     {
       id: 'hidden-signal-01',
       scannable: true,
+      requiresDeepScanner: true,
       position: { x: 4 * TILE_SIZE, y: 6 * TILE_SIZE },
-      scanInfo: {
-        label: 'HIDDEN SIGNAL SOURCE',
-        material: 'UNKNOWN',
-        requiresDeepScanner: true,
-      },
     },
     {
       id: 'exit-to-ancient-ruins',
@@ -227,11 +214,6 @@ export const ANCIENT_RUINS: Region = {
       scannable: true,
       requiresPuzzleSolved: 'ruins-puzzle-01',
       position: { x: 12 * RUINS_TILE_SIZE, y: 6 * RUINS_TILE_SIZE },
-      scanInfo: {
-        label: 'SEALED ARCHIVE',
-        age: '~8,000 years',
-        material: 'UNKNOWN',
-      },
     },
     {
       id: 'fragment-pickup-03',

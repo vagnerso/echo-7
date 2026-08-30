@@ -1,37 +1,46 @@
+import { useTranslations } from '@/hooks/useTranslations';
+
 import styles from './MainMenu.module.css';
 
 export interface MainMenuProps {
   onNewGame: () => void;
   onContinue: () => void;
+  onOpenSettings: () => void;
   hasSave: boolean;
 }
 
-export function MainMenu({ onNewGame, onContinue, hasSave }: MainMenuProps) {
+export function MainMenu({
+  onNewGame,
+  onContinue,
+  onOpenSettings,
+  hasSave,
+}: MainMenuProps) {
+  const t = useTranslations();
+
   return (
     <div className={styles.menu}>
-      <h1 className={styles.title}>ECHO-7</h1>
-      <p className={styles.subtitle}>THE LAST SIGNAL</p>
+      <h1 className={styles.title}>{t.mainMenu.title}</h1>
+      <p className={styles.subtitle}>{t.mainMenu.subtitle}</p>
 
       <nav className={styles.actions}>
         <button type="button" className={styles.button} onClick={onNewGame}>
-          NEW GAME
+          {t.mainMenu.newGame}
         </button>
         <button
           type="button"
           className={styles.button}
           onClick={onContinue}
           disabled={!hasSave}
-          title={hasSave ? undefined : 'Nenhum progresso salvo ainda'}
+          title={hasSave ? undefined : t.mainMenu.noSaveTooltip}
         >
-          CONTINUE
+          {t.mainMenu.continueGame}
         </button>
         <button
           type="button"
           className={styles.button}
-          disabled
-          title="Ainda nao implementado"
+          onClick={onOpenSettings}
         >
-          SETTINGS
+          {t.mainMenu.settings}
         </button>
       </nav>
     </div>

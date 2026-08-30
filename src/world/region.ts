@@ -11,14 +11,6 @@ import type { Vector2 } from '@/entities/player';
  */
 export type TileType = 'floor' | 'wall' | 'hazard' | 'sealed';
 
-export interface ScanInfo {
-  label: string;
-  age?: string;
-  material?: string;
-  /** Se true, o objeto so aparece no scanner com o upgrade Deep Scanner instalado (Fase 6). */
-  requiresDeepScanner?: boolean;
-}
-
 /**
  * Um objeto pode acumular capacidades (ex: interagivel E escaneavel ao mesmo
  * tempo) - por isso sao flags, nao um "kind" excludente. Um objeto sem
@@ -31,8 +23,13 @@ export interface WorldObject {
   interactable?: boolean;
   /** Aparece no scanner (tecla Q) dentro do alcance de scan (Fase 4). */
   scannable?: boolean;
-  /** Dados exibidos no painel do scanner. Presente quando scannable=true. */
-  scanInfo?: ScanInfo;
+  /**
+   * Se true, o objeto so aparece no scanner com o upgrade Deep Scanner
+   * instalado (Fase 6). So faz sentido quando scannable=true. O texto de
+   * exibicao do scan (label/idade/material) nao mora aqui - vem do
+   * dicionario de traducao (src/i18n), indexado por `id` (Fase de i18n).
+   */
+  requiresDeepScanner?: boolean;
   /**
    * Se presente, interagir com o objeto (tecla E) coleta este item para o
    * inventario e remove o objeto do mundo - em vez do comportamento padrao

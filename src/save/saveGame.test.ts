@@ -35,15 +35,12 @@ describe('saveGame/loadGame', () => {
     useGameStore.getState().markPuzzleSolved('ruins-puzzle-01');
     useGameStore.getState().collectFragment('fragment-01');
     useGameStore.getState().installUpgrade('deep-scanner');
-    useGameStore
-      .getState()
-      .addItem({
-        id: 'energy-cell',
-        type: 'resource',
-        name: 'Energy Cell',
-        stackable: true,
-      });
-    useGameStore.getState().setObjective('Investigate the Ancient Ruins.');
+    useGameStore.getState().addItem({
+      id: 'energy-cell',
+      type: 'resource',
+      stackable: true,
+    });
+    useGameStore.getState().setObjective('investigateAncientRuins');
 
     saveGame(storage);
     expect(hasSaveGame(storage)).toBe(true);
@@ -66,7 +63,7 @@ describe('saveGame/loadGame', () => {
     );
     expect(useGameStore.getState().inventory).toHaveLength(1);
     expect(useGameStore.getState().currentObjective).toBe(
-      'Investigate the Ancient Ruins.',
+      'investigateAncientRuins',
     );
   });
 

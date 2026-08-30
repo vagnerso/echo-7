@@ -48,7 +48,6 @@ describe('uiStore', () => {
       id: 'fragment-01',
       regionId: 'region-1',
       corruption: 50,
-      text: 'test',
     };
 
     useUiStore.getState().setActiveFragmentReveal(fragment);
@@ -65,7 +64,6 @@ describe('uiStore', () => {
       id: 'fragment-01',
       regionId: 'region-1',
       corruption: 50,
-      text: 'test',
     });
 
     useUiStore.getState().resetUi();

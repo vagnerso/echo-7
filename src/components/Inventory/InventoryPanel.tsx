@@ -1,5 +1,6 @@
 import { MEMORY_FRAGMENTS } from '@/content/fragments';
 import { UPGRADES } from '@/content/upgrades';
+import { useTranslations } from '@/hooks/useTranslations';
 import { useGameStore } from '@/state/gameStore';
 import { useUiStore } from '@/state/uiStore';
 
@@ -11,6 +12,7 @@ export function InventoryPanel() {
   const capacity = useGameStore((state) => state.inventoryCapacity);
   const installedUpgrades = useGameStore((state) => state.installedUpgrades);
   const collectedFragments = useGameStore((state) => state.collectedFragments);
+  const t = useTranslations();
 
   if (!isOpen) return null;
 
@@ -21,15 +23,15 @@ export function InventoryPanel() {
   return (
     <div className={styles.backdrop}>
       <div className={styles.panel}>
-        <p className={styles.title}>INVENTORY</p>
+        <p className={styles.title}>{t.inventory.title}</p>
 
         {inventory.length === 0 ? (
-          <p className={styles.empty}>Nenhum item coletado ainda.</p>
+          <p className={styles.empty}>{t.inventory.empty}</p>
         ) : (
           <ul className={styles.list}>
             {inventory.map((item) => (
               <li key={item.id} className={styles.row}>
-                <span>{item.name}</span>
+                <span>{t.items[item.id] ?? item.id}</span>
                 <span>x{item.quantity}</span>
               </li>
             ))}
@@ -37,34 +39,35 @@ export function InventoryPanel() {
         )}
 
         <p className={styles.capacity}>
-          {inventory.length}/{capacity} slots
+          {t.inventory.slots(inventory.length, capacity)}
         </p>
 
-        <p className={styles.sectionTitle}>UPGRADES</p>
+        <p className={styles.sectionTitle}>{t.inventory.upgradesTitle}</p>
         <ul className={styles.list}>
           {UPGRADES.map((upgrade) => (
             <li key={upgrade.id} className={styles.row}>
               <span>
-                [{installedUpgrades.has(upgrade.id) ? 'x' : ' '}] {upgrade.name}
+                [{installedUpgrades.has(upgrade.id) ? 'x' : ' '}]{' '}
+                {t.upgrades[upgrade.id]?.name ?? upgrade.id}
               </span>
             </li>
           ))}
         </ul>
 
         <p className={styles.sectionTitle}>
-          MEMORY FRAGMENTS ({collected.length}/{MEMORY_FRAGMENTS.length})
+          {t.inventory.fragmentsTitle(collected.length, MEMORY_FRAGMENTS.length)}
         </p>
         {collected.length === 0 ? (
-          <p className={styles.empty}>Nenhum fragmento recuperado ainda.</p>
+          <p className={styles.empty}>{t.inventory.noFragments}</p>
         ) : (
           <ul className={styles.list}>
             {collected.map((fragment) => (
               <li key={fragment.id} className={styles.fragmentEntry}>
                 <p className={styles.fragmentText}>
-                  &quot;{fragment.text}&quot;
+                  &quot;{t.fragments[fragment.id] ?? ''}&quot;
                 </p>
                 <p className={styles.fragmentMeta}>
-                  DATA RECOVERED: {fragment.corruption}%
+                  {t.inventory.dataRecovered(fragment.corruption)}
                 </p>
               </li>
             ))}

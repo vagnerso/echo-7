@@ -12,11 +12,6 @@ function scannable(id: string, x: number, y: number): WorldObject {
     id,
     scannable: true,
     position: { x, y },
-    scanInfo: {
-      label: 'UNKNOWN STRUCTURE',
-      age: '~8,000 years',
-      material: 'UNKNOWN',
-    },
   };
 }
 
@@ -28,8 +23,8 @@ function hiddenSignal(id: string, x: number, y: number): WorldObject {
   return {
     id,
     scannable: true,
+    requiresDeepScanner: true,
     position: { x, y },
-    scanInfo: { label: 'HIDDEN SIGNAL', requiresDeepScanner: true },
   };
 }
 
@@ -87,7 +82,7 @@ describe('findNearestScannable', () => {
 });
 
 describe('createDiscoveryFromObject', () => {
-  it('cria uma discovery a partir do scanInfo do objeto', () => {
+  it('cria uma discovery a partir da identidade do objeto', () => {
     const object = scannable('structure-01', 0, 0);
 
     const discovery = createDiscoveryFromObject(object, 'region-1');
@@ -95,14 +90,11 @@ describe('createDiscoveryFromObject', () => {
     expect(discovery).toEqual({
       id: 'discovery-structure-01',
       objectId: 'structure-01',
-      label: 'UNKNOWN STRUCTURE',
-      age: '~8,000 years',
-      material: 'UNKNOWN',
       scannedAt: 'region-1',
     });
   });
 
-  it('retorna null se o objeto nao tiver scanInfo', () => {
+  it('retorna null se o objeto nao for escaneavel', () => {
     const object = interactableOnly('console-01', 0, 0);
 
     expect(createDiscoveryFromObject(object, 'region-1')).toBeNull();

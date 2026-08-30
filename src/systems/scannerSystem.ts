@@ -23,7 +23,7 @@ export function findNearestScannable(
 
   for (const object of objects) {
     if (!object.scannable) continue;
-    if (object.scanInfo?.requiresDeepScanner && !hasDeepScanner) continue;
+    if (object.requiresDeepScanner && !hasDeepScanner) continue;
 
     const distance = Math.hypot(
       object.position.x - playerPosition.x,
@@ -39,19 +39,16 @@ export function findNearestScannable(
   return nearest;
 }
 
-/** Constroi uma Discovery a partir de um objeto escaneado. Retorna null se o objeto nao tiver scanInfo (nao deveria acontecer se scannable=true, mas evita quebrar em dado malformado). */
+/** Constroi uma Discovery a partir de um objeto escaneado. Retorna null se o objeto nao for escaneavel (nao deveria acontecer no fluxo normal, mas evita quebrar em dado malformado). */
 export function createDiscoveryFromObject(
   object: WorldObject,
   regionId: string,
 ): Discovery | null {
-  if (!object.scanInfo) return null;
+  if (!object.scannable) return null;
 
   return {
     id: `discovery-${object.id}`,
     objectId: object.id,
-    label: object.scanInfo.label,
-    age: object.scanInfo.age,
-    material: object.scanInfo.material,
     scannedAt: regionId,
   };
 }

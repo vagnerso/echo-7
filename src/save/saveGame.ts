@@ -1,3 +1,4 @@
+import type { ObjectiveKey } from '@/i18n';
 import { useGameStore } from '@/state/gameStore';
 
 const SAVE_KEY = 'echo7-save';
@@ -23,6 +24,9 @@ interface SaveData {
   currentRegionId: string;
   solvedPuzzles: string[];
   collectedFragments: string[];
+  // string, nao ObjectiveKey: um save de antes desta chave existir (ou de
+  // uma versao futura com chaves novas) pode trazer qualquer string aqui.
+  // MissionHUD tem fallback para chave desconhecida (ver hooks/useTranslations).
   currentObjective: string;
   hasReachedEnding: boolean;
 }
@@ -93,7 +97,10 @@ export function loadGame(
     currentRegionId: data.currentRegionId,
     solvedPuzzles: new Set(data.solvedPuzzles),
     collectedFragments: new Set(data.collectedFragments),
-    currentObjective: data.currentObjective,
+    // Cast: um save antigo pode trazer uma sentenca literal (formato usado
+    // antes desta chave existir) em vez de uma ObjectiveKey valida - o
+    // fallback fica no render (useTranslations), nao aqui.
+    currentObjective: data.currentObjective as ObjectiveKey,
     hasReachedEnding: data.hasReachedEnding,
   });
 

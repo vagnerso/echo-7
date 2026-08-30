@@ -554,7 +554,7 @@ function renderScannables(
     // Objeto "oculto" nao deveria ter marcador visivel antes do upgrade -
     // senao o jogador veria o losango no mapa mesmo com o scanner
     // acusando "NO SIGNAL" ali do lado, o que seria inconsistente.
-    if (object.scanInfo?.requiresDeepScanner && !hasDeepScanner) continue;
+    if (object.requiresDeepScanner && !hasDeepScanner) continue;
 
     const screenPosition = worldToScreen(
       object.position,
@@ -670,9 +670,9 @@ export function GameCanvas() {
     cameraRef.current = createCamera(spawnPosition);
 
     if (toRegionId === 'region-2') {
-      useGameStore.getState().setObjective('Investigate the Ancient Ruins.');
+      useGameStore.getState().setObjective('investigateAncientRuins');
     } else if (toRegionId === 'region-3') {
-      useGameStore.getState().setObjective('Activate the Signal Core.');
+      useGameStore.getState().setObjective('activateSignalCore');
     }
   };
 
@@ -860,11 +860,9 @@ export function GameCanvas() {
               useGameStore.getState().markPuzzleSolved(puzzleId);
 
               if (puzzleId === 'ruins-puzzle-01') {
-                useGameStore
-                  .getState()
-                  .setObjective('Find a way to the Signal Core.');
+                useGameStore.getState().setObjective('findWayToSignalCore');
               } else if (puzzleId === 'signal-core-puzzle') {
-                useGameStore.getState().setObjective('Approach the Core.');
+                useGameStore.getState().setObjective('approachCore');
               }
             } else {
               playInteractSound();
