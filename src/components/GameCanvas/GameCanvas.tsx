@@ -19,19 +19,23 @@ import {
   createDiscoveryFromObject,
   findNearestScannable,
 } from '@/systems/scannerSystem';
+import { findInstallableUpgrades } from '@/systems/upgradeSystem';
 import { useGameStore } from '@/state/gameStore';
 import { useUiStore } from '@/state/uiStore';
 import type { Region, WorldObject } from '@/world/region';
-import { getRegionObstacles } from '@/world/worldLoader';
+import { getHazardTiles, getRegionObstacles } from '@/world/worldLoader';
 
 import styles from './GameCanvas.module.css';
 
 const CURRENT_REGION: Region = LANDING_ZONE;
 const REGION_OBSTACLES: readonly AABB[] = getRegionObstacles(CURRENT_REGION);
+const HAZARD_TILES: readonly AABB[] = getHazardTiles(CURRENT_REGION);
 
 const PLAYER_COLOR = '#5ee6c8';
 const WALL_COLOR = 'rgba(94, 230, 200, 0.12)';
 const WALL_BORDER_COLOR = 'rgba(94, 230, 200, 0.4)';
+const HAZARD_COLOR = 'rgba(230, 120, 90, 0.18)';
+const HAZARD_BORDER_COLOR = 'rgba(230, 120, 90, 0.6)';
 const DECORATION_COLOR = 'rgba(216, 219, 226, 0.5)';
 const INTERACTABLE_COLOR = 'rgba(230, 170, 94, 0.7)';
 const INTERACTABLE_ACTIVATED_COLOR = 'rgba(94, 230, 140, 0.8)';
@@ -87,6 +91,33 @@ function renderWalls(
     );
     ctx.fillRect(screenTopLeft.x, screenTopLeft.y, wall.width, wall.height);
     ctx.strokeRect(screenTopLeft.x, screenTopLeft.y, wall.width, wall.height);
+  }
+}
+
+function renderHazards(
+  ctx: CanvasRenderingContext2D,
+  hazards: readonly AABB[],
+  camera: Camera,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  ctx.fillStyle = HAZARD_COLOR;
+  ctx.strokeStyle = HAZARD_BORDER_COLOR;
+
+  for (const hazard of hazards) {
+    const screenTopLeft = worldToScreen(
+      { x: hazard.x, y: hazard.y },
+      camera,
+      canvasWidth,
+      canvasHeight,
+    );
+    ctx.fillRect(screenTopLeft.x, screenTopLeft.y, hazard.width, hazard.height);
+    ctx.strokeRect(
+      screenTopLeft.x,
+      screenTopLeft.y,
+      hazard.width,
+      hazard.height,
+    );
   }
 }
 
@@ -161,12 +192,17 @@ function renderScannables(
   ctx: CanvasRenderingContext2D,
   objects: readonly WorldObject[],
   nearestId: string | null,
+  hasDeepScanner: boolean,
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
 ): void {
   for (const object of objects) {
     if (!object.scannable) continue;
+    // Objeto "oculto" nao deveria ter marcador visivel antes do upgrade -
+    // senao o jogador veria o losango no mapa mesmo com o scanner
+    // acusando "NO SIGNAL" ali do lado, o que seria inconsistente.
+    if (object.scanInfo?.requiresDeepScanner && !hasDeepScanner) continue;
 
     const screenPosition = worldToScreen(
       object.position,
@@ -253,11 +289,18 @@ export function GameCanvas() {
 
       updatePlayerMovement(player, input, dt);
 
+      const hasMagneticBoots = useGameStore
+        .getState()
+        .installedUpgrades.has('magnetic-boots');
+      const obstacles = hasMagneticBoots
+        ? REGION_OBSTACLES
+        : [...REGION_OBSTACLES, ...HAZARD_TILES];
+
       const resolved = resolveCollisions(
         beforeMove,
         player.position,
         player.size,
-        REGION_OBSTACLES,
+        obstacles,
       );
       player.position.x = resolved.x;
       player.position.y = resolved.y;
@@ -280,6 +323,33 @@ export function GameCanvas() {
           if (added) {
             collectedItemsRef.current.add(nearestInteractable.id);
             nearestInteractableRef.current = null;
+
+            // Instala automaticamente qualquer upgrade que o componente
+            // recem-coletado tenha tornado possivel (ver Fase 6 em
+            // docs/DECISIONS.md - sem tecla dedicada para isso). Reavalia a
+            // lista apos cada instalacao (getState() de novo, nao um
+            // snapshot unico) porque instalar um upgrade consome o
+            // componente - sem isso, uma unica unidade de componente
+            // poderia "pagar" por dois upgrades que exigem 1 cada.
+            let installable = findInstallableUpgrades(
+              useGameStore.getState().inventory,
+              useGameStore.getState().installedUpgrades,
+            );
+            while (installable.length > 0) {
+              const upgrade = installable[0]!;
+              useGameStore
+                .getState()
+                .removeItem(
+                  upgrade.requiredComponent.id,
+                  upgrade.requiredComponent.quantity,
+                );
+              useGameStore.getState().installUpgrade(upgrade.id);
+
+              installable = findInstallableUpgrades(
+                useGameStore.getState().inventory,
+                useGameStore.getState().installedUpgrades,
+              );
+            }
           }
         } else {
           const activated = activatedInteractablesRef.current;
@@ -299,8 +369,16 @@ export function GameCanvas() {
       }
 
       const isScannerActive = useUiStore.getState().isScannerActive;
+      const hasDeepScanner = useGameStore
+        .getState()
+        .installedUpgrades.has('deep-scanner');
       const nearestScannable = isScannerActive
-        ? findNearestScannable(player.position, activeObjects)
+        ? findNearestScannable(
+            player.position,
+            activeObjects,
+            undefined,
+            hasDeepScanner,
+          )
         : null;
       nearestScannableRef.current = nearestScannable;
 
@@ -349,6 +427,7 @@ export function GameCanvas() {
       );
 
       renderWalls(ctx, REGION_OBSTACLES, camera, canvas.width, canvas.height);
+      renderHazards(ctx, HAZARD_TILES, camera, canvas.width, canvas.height);
       renderDecorations(
         ctx,
         activeObjects,
@@ -369,6 +448,7 @@ export function GameCanvas() {
         ctx,
         activeObjects,
         nearestScannableRef.current?.id ?? null,
+        useGameStore.getState().installedUpgrades.has('deep-scanner'),
         camera,
         canvas.width,
         canvas.height,

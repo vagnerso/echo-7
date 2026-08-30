@@ -24,6 +24,15 @@ function interactableOnly(id: string, x: number, y: number): WorldObject {
   return { id, interactable: true, position: { x, y } };
 }
 
+function hiddenSignal(id: string, x: number, y: number): WorldObject {
+  return {
+    id,
+    scannable: true,
+    position: { x, y },
+    scanInfo: { label: 'HIDDEN SIGNAL', requiresDeepScanner: true },
+  };
+}
+
 describe('findNearestScannable', () => {
   it('retorna o objeto quando esta dentro do alcance', () => {
     const objects = [scannable('structure-01', 120, 100)];
@@ -58,6 +67,22 @@ describe('findNearestScannable', () => {
     const found = findNearestScannable({ x: 100, y: 100 }, objects, 150);
 
     expect(found?.id).toBe('perto');
+  });
+
+  it('ignora objetos que exigem deep scanner quando hasDeepScanner e false', () => {
+    const objects = [hiddenSignal('hidden-01', 110, 100)];
+
+    const found = findNearestScannable({ x: 100, y: 100 }, objects, 50, false);
+
+    expect(found).toBeNull();
+  });
+
+  it('detecta objetos que exigem deep scanner quando hasDeepScanner e true', () => {
+    const objects = [hiddenSignal('hidden-01', 110, 100)];
+
+    const found = findNearestScannable({ x: 100, y: 100 }, objects, 50, true);
+
+    expect(found?.id).toBe('hidden-01');
   });
 });
 

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Region } from './region';
-import { getRegionObstacles, getRegionSize } from './worldLoader';
+import {
+  getHazardTiles,
+  getRegionObstacles,
+  getRegionSize,
+} from './worldLoader';
 
 function fixtureRegion(): Region {
   return {
@@ -45,6 +49,27 @@ describe('getRegionObstacles', () => {
     };
 
     expect(getRegionObstacles(region)).toEqual([]);
+  });
+});
+
+describe('getHazardTiles', () => {
+  it('gera um AABB para cada tile de hazard, ignorando parede e floor', () => {
+    const region: Region = {
+      id: 'test-region',
+      name: 'Test Region',
+      tileSize: 10,
+      tiles: [
+        ['wall', 'hazard', 'floor'],
+        ['floor', 'hazard', 'wall'],
+      ],
+      objects: [],
+    };
+
+    const hazards = getHazardTiles(region);
+
+    expect(hazards).toHaveLength(2);
+    expect(hazards).toContainEqual({ x: 10, y: 0, width: 10, height: 10 });
+    expect(hazards).toContainEqual({ x: 10, y: 10, width: 10, height: 10 });
   });
 });
 

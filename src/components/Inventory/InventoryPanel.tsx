@@ -1,3 +1,4 @@
+import { UPGRADES } from '@/content/upgrades';
 import { useGameStore } from '@/state/gameStore';
 import { useUiStore } from '@/state/uiStore';
 
@@ -7,6 +8,7 @@ export function InventoryPanel() {
   const isOpen = useUiStore((state) => state.isInventoryOpen);
   const inventory = useGameStore((state) => state.inventory);
   const capacity = useGameStore((state) => state.inventoryCapacity);
+  const installedUpgrades = useGameStore((state) => state.installedUpgrades);
 
   if (!isOpen) return null;
 
@@ -31,6 +33,17 @@ export function InventoryPanel() {
         <p className={styles.capacity}>
           {inventory.length}/{capacity} slots
         </p>
+
+        <p className={styles.sectionTitle}>UPGRADES</p>
+        <ul className={styles.list}>
+          {UPGRADES.map((upgrade) => (
+            <li key={upgrade.id} className={styles.row}>
+              <span>
+                [{installedUpgrades.has(upgrade.id) ? 'x' : ' '}] {upgrade.name}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

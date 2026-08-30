@@ -6,17 +6,24 @@ import type { WorldObject } from '@/world/region';
 // mais longe do que tocar em algo.
 export const SCAN_RANGE = 150;
 
-/** Retorna o objeto escaneavel mais proximo dentro do alcance, ou null se nenhum estiver. */
+/**
+ * Retorna o objeto escaneavel mais proximo dentro do alcance, ou null se
+ * nenhum estiver. Objetos marcados requiresDeepScanner ficam de fora
+ * enquanto hasDeepScanner for false - o upgrade Deep Scanner (Fase 6) os
+ * torna detectaveis.
+ */
 export function findNearestScannable(
   playerPosition: Vector2,
   objects: readonly WorldObject[],
   range: number = SCAN_RANGE,
+  hasDeepScanner: boolean = false,
 ): WorldObject | null {
   let nearest: WorldObject | null = null;
   let nearestDistance = Infinity;
 
   for (const object of objects) {
     if (!object.scannable) continue;
+    if (object.scanInfo?.requiresDeepScanner && !hasDeepScanner) continue;
 
     const distance = Math.hypot(
       object.position.x - playerPosition.x,

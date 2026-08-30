@@ -1,14 +1,17 @@
 import type { AABB } from '@/systems/collisionSystem';
 
-import type { Region } from './region';
+import type { Region, TileType } from './region';
 
-/** Converte cada tile 'wall' da regiao num AABB de colisao. */
-export function getRegionObstacles(region: Region): AABB[] {
+/** Converte cada tile do tipo informado num AABB de colisao. */
+export function getObstaclesForTileType(
+  region: Region,
+  tileType: TileType,
+): AABB[] {
   const obstacles: AABB[] = [];
 
   region.tiles.forEach((row, rowIndex) => {
     row.forEach((tile, colIndex) => {
-      if (tile === 'wall') {
+      if (tile === tileType) {
         obstacles.push({
           x: colIndex * region.tileSize,
           y: rowIndex * region.tileSize,
@@ -20,6 +23,15 @@ export function getRegionObstacles(region: Region): AABB[] {
   });
 
   return obstacles;
+}
+
+export function getRegionObstacles(region: Region): AABB[] {
+  return getObstaclesForTileType(region, 'wall');
+}
+
+/** Tiles 'hazard': so bloqueiam quem nao tiver o upgrade Magnetic Boots (ver Fase 6 em docs/DECISIONS.md). */
+export function getHazardTiles(region: Region): AABB[] {
+  return getObstaclesForTileType(region, 'hazard');
 }
 
 export function getRegionSize(region: Region): {

@@ -1,12 +1,18 @@
 import type { InventoryItem } from '@/entities/inventoryItem';
 import type { Vector2 } from '@/entities/player';
 
-export type TileType = 'floor' | 'wall';
+/**
+ * 'hazard': bloqueia colisao como uma parede, exceto para quem tiver o
+ * upgrade Magnetic Boots instalado (Fase 6).
+ */
+export type TileType = 'floor' | 'wall' | 'hazard';
 
 export interface ScanInfo {
   label: string;
   age?: string;
   material?: string;
+  /** Se true, o objeto so aparece no scanner com o upgrade Deep Scanner instalado (Fase 6). */
+  requiresDeepScanner?: boolean;
 }
 
 /**

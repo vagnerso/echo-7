@@ -334,6 +334,46 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Motivo:** sem essa checagem, um item "coletado" com inventário cheio simplesmente desapareceria do mundo sem entrar no inventário - perda de progresso silenciosa. Deixar o item no lugar até haver espaço é o comportamento correto e mais simples de implementar (não precisa de fila de itens pendentes nem de notificação de erro).
 
+## Fase 6 — Upgrades
+
+### Instalação automática ao coletar o componente, sem tecla nova
+
+**Contexto:** o esquema de controles do prompt mestre (seção 3) define só E/Q/I/ESC - nenhuma tecla para "abrir upgrades".
+
+**Decisão:** o upgrade se instala sozinho assim que o inventário tem o componente necessário (consumindo-o na hora); a lista de upgrades vira uma seção dentro do painel de inventário (tecla I) já existente.
+
+**Motivo:** inventar uma tecla nova mudaria um esquema de controles já definido pelo prompt mestre sem necessidade - a informação "o que está instalado" cabe perfeitamente como uma segunda seção do painel que já existe para mostrar progresso do jogador.
+
+### Upgrades gateiam mecânicas existentes, não criam mecânicas novas
+
+**Decisão:** "Deep Scanner" faz `findNearestScannable` (e a renderização do marcador) ignorar objetos com `scanInfo.requiresDeepScanner` até o upgrade estar instalado; "Magnetic Boots" faz um tile `hazard` parar de contar como obstáculo de colisão.
+
+**Motivo:** os dois reaproveitam sistemas já existentes (scanner da Fase 4, colisão da Fase 2/3) - nenhum mecanismo de gameplay novo foi criado, só mais um eixo de condição nos que já existiam. Consistente com "prefira a solução simples" (seção 19 do prompt mestre).
+
+### Sem `scannerLevel`/`hasMagneticBoots` no `Player`
+
+**Decisão:** a engine lê `useGameStore.getState().installedUpgrades.has(...)` diretamente onde precisa (update e render), em vez de espelhar isso em campos na entidade `Player`.
+
+**Motivo:** duplicar o dado (uma vez na store, outra vez no Player) criaria duas fontes de verdade que poderiam divergir. A `gameStore` já é a fonte de verdade sobre progresso do jogador (discoveries, inventário) - upgrades instalados é só mais um campo dela.
+
+### Bug real: reavaliar upgrades instaláveis após cada instalação, não com um snapshot único
+
+**Contexto:** ao implementar a instalação automática, o primeiro código calculava a lista de upgrades instaláveis **uma vez** a partir do inventário no momento da coleta, e instalava todos os retornados num loop.
+
+**O bug:** os dois upgrades do MVP exigem `1x Ancient Component` cada. Coletar **um único** componente tornava os dois elegíveis simultaneamente nesse snapshot único - o loop instalaria os dois, e o segundo `removeItem` simplesmente não teria efeito (item já removido pelo primeiro), mas o resultado final seria dois upgrades instalados a partir de um componente só.
+
+**Correção:** reavaliar `findInstallableUpgrades` com `useGameStore.getState()` fresco a cada instalação dentro de um `while`, não um `for` sobre uma lista pré-computada. Peguei isso revisando o próprio código antes de testar no navegador, e travei com um teste (`gameStore.test.ts`) que reproduz exatamente esse cenário.
+
+**Como isso foi encontrado:** ao planejar a verificação visual, percebi que a lógica dependia da ordem de avaliação e da mutação do estado entre iterações - um lembrete de que "escrever um loop que consome e reage ao mesmo estado que está mudando" é um padrão que merece atenção extra, mesmo em código simples.
+
+### Marcador de objeto "oculto" também não é renderizado sem o upgrade
+
+**Contexto:** a primeira versão só escondia o **resultado do scan** de um objeto com `requiresDeepScanner`, mas continuava desenhando o losango dele no mapa.
+
+**Decisão:** `renderScannables` também ignora objetos com `requiresDeepScanner` quando o jogador não tem o upgrade - o objeto fica completamente invisível, não só "sem informação".
+
+**Motivo:** encontrado na própria verificação visual desta fase - via um losango claramente visível ao lado do jogador enquanto o painel dizia "NO SIGNAL", o que não fazia sentido narrativo nem de UX ("hidden signal" deveria estar de fato escondido, não só sem detalhes).
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).

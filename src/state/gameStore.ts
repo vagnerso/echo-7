@@ -16,6 +16,9 @@ interface GameState {
     item: Omit<InventoryItem, 'quantity'> & { quantity?: number },
   ) => boolean;
   removeItem: (id: string, quantity?: number) => void;
+
+  installedUpgrades: ReadonlySet<string>;
+  installUpgrade: (id: string) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -73,6 +76,17 @@ export const useGameStore = create<GameState>((set, get) => ({
           entry.id === id ? { ...entry, quantity: remaining } : entry,
         ),
       };
+    });
+  },
+
+  installedUpgrades: new Set<string>(),
+  installUpgrade: (id) => {
+    set((state) => {
+      if (state.installedUpgrades.has(id)) return state;
+
+      const next = new Set(state.installedUpgrades);
+      next.add(id);
+      return { installedUpgrades: next };
     });
   },
 }));
