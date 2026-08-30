@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { GameCanvas } from '@/components/GameCanvas/GameCanvas';
+import { InventoryPanel } from '@/components/Inventory/InventoryPanel';
 import { MainMenu } from '@/components/MainMenu/MainMenu';
 import { ScannerOverlay } from '@/components/Scanner/ScannerOverlay';
 
@@ -19,6 +20,7 @@ function App() {
         <>
           <GameCanvas />
           <ScannerOverlay />
+          <InventoryPanel />
         </>
       )}
     </div>

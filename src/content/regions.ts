@@ -56,5 +56,29 @@ export const LANDING_ZONE: Region = {
         material: 'UNKNOWN',
       },
     },
+    {
+      id: 'energy-cell-pickup-01',
+      interactable: true,
+      position: { x: 3 * TILE_SIZE, y: 10 * TILE_SIZE },
+      collectible: {
+        id: 'energy-cell',
+        type: 'resource',
+        name: 'Energy Cell',
+        stackable: true,
+        quantity: 1,
+      },
+    },
+    {
+      id: 'energy-cell-pickup-02',
+      interactable: true,
+      position: { x: 17 * TILE_SIZE, y: 3 * TILE_SIZE },
+      collectible: {
+        id: 'energy-cell',
+        type: 'resource',
+        name: 'Energy Cell',
+        stackable: true,
+        quantity: 1,
+      },
+    },
   ],
 };

@@ -8,6 +8,9 @@ interface UiState {
   /** Objeto que o scanner esta mostrando agora (null se nada em alcance ou scanner desligado). */
   currentScanTarget: Discovery | null;
   setCurrentScanTarget: (target: Discovery | null) => void;
+
+  isInventoryOpen: boolean;
+  toggleInventory: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -16,4 +19,8 @@ export const useUiStore = create<UiState>((set) => ({
     set((state) => ({ isScannerActive: !state.isScannerActive })),
   currentScanTarget: null,
   setCurrentScanTarget: (target) => set({ currentScanTarget: target }),
+
+  isInventoryOpen: false,
+  toggleInventory: () =>
+    set((state) => ({ isInventoryOpen: !state.isInventoryOpen })),
 }));

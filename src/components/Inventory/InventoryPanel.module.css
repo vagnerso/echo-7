@@ -1,0 +1,52 @@
+.backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 13, 18, 0.6);
+}
+
+.panel {
+  min-width: 280px;
+  padding: 20px 24px;
+  background: #12141c;
+  border: 1px solid rgba(94, 230, 200, 0.4);
+  color: #d8dbe2;
+  font-family: ui-monospace, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.title {
+  margin: 0 0 16px;
+  color: #5ee6c8;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+}
+
+.empty {
+  opacity: 0.6;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.capacity {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(94, 230, 200, 0.2);
+  font-size: 12px;
+  opacity: 0.6;
+}

@@ -59,8 +59,8 @@ A estrutura completa está detalhada em [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - [x] Fase 2 — Robot (ECHO-7, movimento, câmera, colisão)
 - [x] Fase 3 — World (mapa, tiles, interação)
 - [x] Fase 4 — Scanner
-- [ ] Fase 5 — Inventory *(em andamento)*
-- [ ] Fase 6 — Upgrades
+- [x] Fase 5 — Inventory
+- [ ] Fase 6 — Upgrades *(em andamento)*
 - [ ] Fase 7 — Puzzles
 - [ ] Fase 8 — Narrative (Memory Fragments, missão, final da vertical slice)
 - [ ] Fase 9 — Polish

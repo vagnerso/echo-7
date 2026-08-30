@@ -306,6 +306,34 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Motivo:** o roadmap desta fase pede "detecção por raio" e "geração de discovery" (seções 4.1 e 4.3), não um fluxo de confirmação em múltiplas etapas. Adicionar isso agora seria escopo além do que foi pedido; pode ser revisitado se o playtest mostrar que falta alguma intenção do jogador antes de "gastar" a descoberta.
 
+## Fase 5 — Inventory
+
+### Capacidade do inventário é sobre slots distintos, não soma de itens
+
+**Contexto:** `inventoryCapacity: 5` (Fase 0) precisava de uma definição precisa de "capacidade".
+
+**Decisão:** capacidade limita quantos **tipos** de item distintos cabem no inventário (`inventory.length >= inventoryCapacity`), não a soma das quantidades. Empilhar mais unidades de um item que já existe nunca é bloqueado pela capacidade.
+
+**Motivo:** o mockup do prompt mestre mostra o inventário como uma lista de tipos de item, cada um com sua quantidade (`Energy Cell x2`) — a limitação natural é de variedade, não de quantidade total, como na maioria dos jogos com inventário por slots.
+
+### Coletar reaproveita a tecla E (interação), não é um mecanismo novo
+
+**Decisão:** um item coletável no mundo é `interactable: true` com um campo adicional `collectible: InventoryItem`. Apertar E decide o comportamento: se o objeto tem `collectible`, coleta (soma ao inventário, remove do mundo); senão, mantém o comportamento de alternância já existente (como o console).
+
+**Motivo:** já existia detecção de alcance e de borda de subida para interação (Fase 3.3) - criar um mecanismo de coleta separado (ex: coletar automaticamente ao encostar) duplicaria essa lógica sem necessidade.
+
+### Objeto coletado é removido via um `Set` de sessão, não apagado de `content/regions.ts`
+
+**Decisão:** `GameCanvas` mantém um `Set<string>` dos ids já coletados nesta sessão e filtra a lista de objetos ativos a partir disso, em vez de mutar os dados da região.
+
+**Motivo:** mesmo raciocínio já registrado para o estado de "ativado" de um interactable (Fase 3.3) - conteúdo estático e estado de sessão são coisas diferentes, e essa separação é o que vai permitir ao save system (Fase 8) serializar só o progresso, sem reescrever a definição do mundo.
+
+### Item permanece no mundo se o inventário estiver cheio
+
+**Decisão:** `addItem` retorna `false` quando não há espaço para um item de tipo novo; `GameCanvas` só marca o objeto como coletado (some do mundo) se o retorno for `true`.
+
+**Motivo:** sem essa checagem, um item "coletado" com inventário cheio simplesmente desapareceria do mundo sem entrar no inventário - perda de progresso silenciosa. Deixar o item no lugar até haver espaço é o comportamento correto e mais simples de implementar (não precisa de fila de itens pendentes nem de notificação de erro).
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).

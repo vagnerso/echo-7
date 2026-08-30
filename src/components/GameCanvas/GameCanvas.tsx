@@ -35,6 +35,7 @@ const WALL_BORDER_COLOR = 'rgba(94, 230, 200, 0.4)';
 const DECORATION_COLOR = 'rgba(216, 219, 226, 0.5)';
 const INTERACTABLE_COLOR = 'rgba(230, 170, 94, 0.7)';
 const INTERACTABLE_ACTIVATED_COLOR = 'rgba(94, 230, 140, 0.8)';
+const COLLECTIBLE_COLOR = 'rgba(240, 210, 90, 0.85)';
 const HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.9)';
 const SCANNABLE_COLOR = 'rgba(120, 170, 255, 0.7)';
 
@@ -91,14 +92,14 @@ function renderWalls(
 
 function renderDecorations(
   ctx: CanvasRenderingContext2D,
-  region: Region,
+  objects: readonly WorldObject[],
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
 ): void {
   ctx.fillStyle = DECORATION_COLOR;
 
-  for (const object of region.objects) {
+  for (const object of objects) {
     if (object.interactable || object.scannable) continue;
 
     const screenPosition = worldToScreen(
@@ -115,14 +116,14 @@ function renderDecorations(
 
 function renderInteractables(
   ctx: CanvasRenderingContext2D,
-  region: Region,
+  objects: readonly WorldObject[],
   activated: ReadonlyMap<string, boolean>,
   nearestId: string | null,
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
 ): void {
-  for (const object of region.objects) {
+  for (const object of objects) {
     if (!object.interactable) continue;
 
     const screenPosition = worldToScreen(
@@ -140,6 +141,13 @@ function renderInteractables(
       ctx.stroke();
     }
 
+    if (object.collectible) {
+      // Item coletavel: quadrado, para diferenciar de um interagivel fixo (console) ate ter arte de verdade (Fase 9).
+      ctx.fillStyle = COLLECTIBLE_COLOR;
+      ctx.fillRect(screenPosition.x - 8, screenPosition.y - 8, 16, 16);
+      continue;
+    }
+
     ctx.fillStyle = activated.get(object.id)
       ? INTERACTABLE_ACTIVATED_COLOR
       : INTERACTABLE_COLOR;
@@ -151,13 +159,13 @@ function renderInteractables(
 
 function renderScannables(
   ctx: CanvasRenderingContext2D,
-  region: Region,
+  objects: readonly WorldObject[],
   nearestId: string | null,
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
 ): void {
-  for (const object of region.objects) {
+  for (const object of objects) {
     if (!object.scannable) continue;
 
     const screenPosition = worldToScreen(
@@ -197,6 +205,10 @@ export function GameCanvas() {
   const nearestInteractableRef = useRef<WorldObject | null>(null);
   const nearestScannableRef = useRef<WorldObject | null>(null);
   const activatedInteractablesRef = useRef<Map<string, boolean>>(new Map());
+  // Ids de objetos coletaveis ja recolhidos - somem do mundo (nao renderizam,
+  // nao contam mais para interacao/scan). Content/regions.ts continua
+  // imutavel; isso e estado de sessao, nao de conteudo.
+  const collectedItemsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const container = containerRef.current;
@@ -250,27 +262,45 @@ export function GameCanvas() {
       player.position.x = resolved.x;
       player.position.y = resolved.y;
 
+      const activeObjects = CURRENT_REGION.objects.filter(
+        (object) => !collectedItemsRef.current.has(object.id),
+      );
+
       const nearestInteractable = findNearestInteractable(
         player.position,
-        CURRENT_REGION.objects,
+        activeObjects,
       );
       nearestInteractableRef.current = nearestInteractable;
 
       if (nearestInteractable && input.wasActionJustPressed('interact')) {
-        const activated = activatedInteractablesRef.current;
-        activated.set(
-          nearestInteractable.id,
-          !activated.get(nearestInteractable.id),
-        );
+        if (nearestInteractable.collectible) {
+          const added = useGameStore
+            .getState()
+            .addItem(nearestInteractable.collectible);
+          if (added) {
+            collectedItemsRef.current.add(nearestInteractable.id);
+            nearestInteractableRef.current = null;
+          }
+        } else {
+          const activated = activatedInteractablesRef.current;
+          activated.set(
+            nearestInteractable.id,
+            !activated.get(nearestInteractable.id),
+          );
+        }
       }
 
       if (input.wasActionJustPressed('scanner')) {
         useUiStore.getState().toggleScanner();
       }
 
+      if (input.wasActionJustPressed('inventory')) {
+        useUiStore.getState().toggleInventory();
+      }
+
       const isScannerActive = useUiStore.getState().isScannerActive;
       const nearestScannable = isScannerActive
-        ? findNearestScannable(player.position, CURRENT_REGION.objects)
+        ? findNearestScannable(player.position, activeObjects)
         : null;
       nearestScannableRef.current = nearestScannable;
 
@@ -314,17 +344,21 @@ export function GameCanvas() {
       const camera = cameraRef.current;
       updateCameraFollow(camera, renderPosition);
 
+      const activeObjects = CURRENT_REGION.objects.filter(
+        (object) => !collectedItemsRef.current.has(object.id),
+      );
+
       renderWalls(ctx, REGION_OBSTACLES, camera, canvas.width, canvas.height);
       renderDecorations(
         ctx,
-        CURRENT_REGION,
+        activeObjects,
         camera,
         canvas.width,
         canvas.height,
       );
       renderInteractables(
         ctx,
-        CURRENT_REGION,
+        activeObjects,
         activatedInteractablesRef.current,
         nearestInteractableRef.current?.id ?? null,
         camera,
@@ -333,7 +367,7 @@ export function GameCanvas() {
       );
       renderScannables(
         ctx,
-        CURRENT_REGION,
+        activeObjects,
         nearestScannableRef.current?.id ?? null,
         camera,
         canvas.width,

@@ -4,7 +4,11 @@ import { useUiStore } from './uiStore';
 
 describe('uiStore', () => {
   beforeEach(() => {
-    useUiStore.setState({ isScannerActive: false, currentScanTarget: null });
+    useUiStore.setState({
+      isScannerActive: false,
+      currentScanTarget: null,
+      isInventoryOpen: false,
+    });
   });
 
   it('toggleScanner alterna o estado a cada chamada', () => {
@@ -28,5 +32,13 @@ describe('uiStore', () => {
 
     useUiStore.getState().setCurrentScanTarget(null);
     expect(useUiStore.getState().currentScanTarget).toBeNull();
+  });
+
+  it('toggleInventory alterna o estado a cada chamada', () => {
+    useUiStore.getState().toggleInventory();
+    expect(useUiStore.getState().isInventoryOpen).toBe(true);
+
+    useUiStore.getState().toggleInventory();
+    expect(useUiStore.getState().isInventoryOpen).toBe(false);
   });
 });

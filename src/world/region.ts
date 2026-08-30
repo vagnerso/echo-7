@@ -1,3 +1,4 @@
+import type { InventoryItem } from '@/entities/inventoryItem';
 import type { Vector2 } from '@/entities/player';
 
 export type TileType = 'floor' | 'wall';
@@ -22,6 +23,12 @@ export interface WorldObject {
   scannable?: boolean;
   /** Dados exibidos no painel do scanner. Presente quando scannable=true. */
   scanInfo?: ScanInfo;
+  /**
+   * Se presente, interagir com o objeto (tecla E) coleta este item para o
+   * inventario e remove o objeto do mundo - em vez do comportamento padrao
+   * de "ativar/alternar" de um interactable sem collectible.
+   */
+  collectible?: InventoryItem;
 }
 
 export interface Region {
