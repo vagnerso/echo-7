@@ -3,17 +3,28 @@ import type { WorldObject } from '@/world/region';
 
 export const INTERACTION_RANGE = 56;
 
-/** Retorna o objeto interagivel mais proximo dentro do alcance, ou null se nenhum estiver. Ignora objetos de decoracao. */
+/**
+ * Retorna o objeto interagivel mais proximo dentro do alcance, ou null se
+ * nenhum estiver. Ignora objetos de decoracao e objetos que exigem um
+ * puzzle ainda nao resolvido (requiresPuzzleSolved).
+ */
 export function findNearestInteractable(
   playerPosition: Vector2,
   objects: readonly WorldObject[],
   range: number = INTERACTION_RANGE,
+  solvedPuzzles: ReadonlySet<string> = new Set(),
 ): WorldObject | null {
   let nearest: WorldObject | null = null;
   let nearestDistance = Infinity;
 
   for (const object of objects) {
     if (!object.interactable) continue;
+    if (
+      object.requiresPuzzleSolved &&
+      !solvedPuzzles.has(object.requiresPuzzleSolved)
+    ) {
+      continue;
+    }
 
     const distance = Math.hypot(
       object.position.x - playerPosition.x,

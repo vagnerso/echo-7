@@ -19,6 +19,12 @@ interface GameState {
 
   installedUpgrades: ReadonlySet<string>;
   installUpgrade: (id: string) => void;
+
+  currentRegionId: string;
+  setCurrentRegion: (regionId: string) => void;
+
+  solvedPuzzles: ReadonlySet<string>;
+  markPuzzleSolved: (id: string) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -87,6 +93,23 @@ export const useGameStore = create<GameState>((set, get) => ({
       const next = new Set(state.installedUpgrades);
       next.add(id);
       return { installedUpgrades: next };
+    });
+  },
+
+  // 'region-1' precisa bater com LANDING_ZONE.id (content/regions.ts) - o
+  // valor fica hardcoded aqui, nao importado de content/, para state/ nao
+  // depender dos dados de conteudo do jogo.
+  currentRegionId: 'region-1',
+  setCurrentRegion: (regionId) => set({ currentRegionId: regionId }),
+
+  solvedPuzzles: new Set<string>(),
+  markPuzzleSolved: (id) => {
+    set((state) => {
+      if (state.solvedPuzzles.has(id)) return state;
+
+      const next = new Set(state.solvedPuzzles);
+      next.add(id);
+      return { solvedPuzzles: next };
     });
   },
 }));

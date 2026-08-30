@@ -34,6 +34,11 @@ export function getHazardTiles(region: Region): AABB[] {
   return getObstaclesForTileType(region, 'hazard');
 }
 
+/** Tiles 'sealed': so bloqueiam enquanto o puzzle correspondente nao for resolvido (Fase 7). */
+export function getSealedTiles(region: Region): AABB[] {
+  return getObstaclesForTileType(region, 'sealed');
+}
+
 export function getRegionSize(region: Region): {
   width: number;
   height: number;

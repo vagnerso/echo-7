@@ -127,5 +127,98 @@ export const LANDING_ZONE: Region = {
         requiresDeepScanner: true,
       },
     },
+    {
+      id: 'exit-to-ancient-ruins',
+      interactable: true,
+      position: { x: 18 * TILE_SIZE, y: 12 * TILE_SIZE },
+      exit: {
+        toRegionId: 'region-2',
+        spawnPosition: { x: 2 * TILE_SIZE, y: 7 * TILE_SIZE },
+      },
+    },
   ],
+};
+
+const RUINS_TILE_SIZE = 64;
+const RUINS_COLS = 14;
+const RUINS_ROWS = 10;
+
+function buildAncientRuinsTiles(): TileType[][] {
+  const tiles: TileType[][] = [];
+
+  for (let row = 0; row < RUINS_ROWS; row += 1) {
+    const line: TileType[] = [];
+    for (let col = 0; col < RUINS_COLS; col += 1) {
+      const isBorder =
+        row === 0 ||
+        row === RUINS_ROWS - 1 ||
+        col === 0 ||
+        col === RUINS_COLS - 1;
+      line.push(isBorder ? 'wall' : 'floor');
+    }
+    tiles.push(line);
+  }
+
+  // Nicho selado (Fase 7): uma unica celula (col12,row6), encostada na
+  // parede da borda, acessivel so pela entrada em 'sealed' (col11,row6) -
+  // que so deixa de bloquear quando ruins-puzzle-01 e resolvido.
+  tiles[5][12] = 'wall';
+  tiles[7][12] = 'wall';
+  tiles[6][11] = 'sealed';
+
+  return tiles;
+}
+
+export const ANCIENT_RUINS: Region = {
+  id: 'region-2',
+  name: 'Ancient Ruins',
+  tileSize: RUINS_TILE_SIZE,
+  tiles: buildAncientRuinsTiles(),
+  objects: [
+    {
+      id: 'exit-to-landing-zone',
+      interactable: true,
+      position: { x: 2 * RUINS_TILE_SIZE, y: 7 * RUINS_TILE_SIZE },
+      exit: {
+        toRegionId: 'region-1',
+        // Ponto aberto, longe da alcova magnetica (cols15-18) - spawnar ali
+        // sem o upgrade Magnetic Boots deixaria o jogador preso sem saida.
+        spawnPosition: { x: 10 * TILE_SIZE, y: 10 * TILE_SIZE },
+      },
+    },
+    {
+      id: 'ruins-switch-a',
+      interactable: true,
+      position: { x: 3 * RUINS_TILE_SIZE, y: 2 * RUINS_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'ruins-puzzle-01', switchId: 'switch-a' },
+    },
+    {
+      id: 'ruins-switch-b',
+      interactable: true,
+      position: { x: 10 * RUINS_TILE_SIZE, y: 2 * RUINS_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'ruins-puzzle-01', switchId: 'switch-b' },
+    },
+    {
+      id: 'ruins-switch-c',
+      interactable: true,
+      position: { x: 6 * RUINS_TILE_SIZE, y: 7 * RUINS_TILE_SIZE },
+      puzzleSwitch: { puzzleId: 'ruins-puzzle-01', switchId: 'switch-c' },
+    },
+    {
+      id: 'ruins-archive',
+      scannable: true,
+      requiresPuzzleSolved: 'ruins-puzzle-01',
+      position: { x: 12 * RUINS_TILE_SIZE, y: 6 * RUINS_TILE_SIZE },
+      scanInfo: {
+        label: 'SEALED ARCHIVE',
+        age: '~8,000 years',
+        material: 'UNKNOWN',
+      },
+    },
+  ],
+};
+
+export const REGIONS: Record<string, Region> = {
+  [LANDING_ZONE.id]: LANDING_ZONE,
+  [ANCIENT_RUINS.id]: ANCIENT_RUINS,
 };

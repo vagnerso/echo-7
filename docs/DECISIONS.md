@@ -374,6 +374,52 @@ Cada entrada segue o formato: contexto, decisão, alternativas consideradas, mot
 
 **Motivo:** encontrado na própria verificação visual desta fase - via um losango claramente visível ao lado do jogador enquanto o painel dizia "NO SIGNAL", o que não fazia sentido narrativo nem de UX ("hidden signal" deveria estar de fato escondido, não só sem detalhes).
 
+## Fase 7 — Puzzles
+
+### Escopo redefinido: Região 2 + Puzzle 1 agora, Região 3/Puzzle 2 na Fase 8
+
+**Contexto:** o roadmap original (escrito na Fase 0) colocava "Puzzle #1 na Região 2" e "Puzzle #2 no Signal Core (Região 3)", mas nenhuma das duas regiões existia - só a Landing Zone (Região 1).
+
+**Decisão:** criar a Região 2 (Ancient Ruins) e o sistema de transição entre regiões agora, para o primeiro puzzle de verdade. O Signal Core (Região 3) e o segundo puzzle ficam para a Fase 8, que já previa um "trigger pós-puzzle final" no encerramento - faz mais sentido construir aquela região junto com o conteúdo narrativo real do final, em vez de criar um placeholder que seria refeito depois.
+
+**Motivo:** confirmado com o desenvolvedor antes de começar (ver conversa) - evita trabalho descartável.
+
+### Só um tipo de puzzle, sem "registry" de tipos
+
+**Decisão:** `systems/puzzleSystem.ts` implementa diretamente a lógica de sequência (`activateSwitch`), sem uma camada de despacho por `puzzle.type`.
+
+**Motivo:** só existe um tipo (`sequence`) neste MVP. Construir um sistema de plugins para tipos que não existem ainda seria especular sobre necessidade futura - "três linhas parecidas" (aqui, zero linhas de um segundo tipo) vencem uma abstração prematura.
+
+### "Resolvido" (permanente) e "progresso da tentativa" (sessão) são estados diferentes
+
+**Decisão:** `solvedPuzzles` mora na `gameStore` (vai para o save system na Fase 8); o progresso parcial de uma sequência em andamento fica num `Map` local no `GameCanvas`, perdido ao recarregar.
+
+**Motivo:** mesma distinção já aplicada a discoveries/upgrades/itens coletados - o que é "progresso do jogador" de verdade é permanente; o que é "estado de uma tentativa em andamento" não precisa sobreviver a um reload, e a maioria dos jogos com esse tipo de puzzle já reseta tentativas ao sair da área mesmo.
+
+### Recompensa do puzzle reaproveita o padrão de gating já existente
+
+**Decisão:** resolver o puzzle libera uma área selada (tile `sealed`, mesmo mecanismo condicional do `hazard` da Fase 6, mas gateado por `solvedPuzzles` em vez de `installedUpgrades`) contendo um objeto escaneável de recompensa (`requiresPuzzleSolved`).
+
+**Motivo:** "resolver puzzle → obter acesso a uma nova área" é literalmente o que a seção 8 do prompt mestre descreve como o loop de progressão. Reaproveitar o mecanismo condicional de obstáculo (em vez de inventar outro) e o gating por `requires*` (já usado para o Deep Scanner) evita duplicar conceitos.
+
+**Nota sobre o marcador do objeto de recompensa:** ao contrário do "sinal oculto" gateado por Deep Scanner (Fase 6), o `ruins-archive` **continua visível** no mapa mesmo antes do puzzle ser resolvido - só fica inacessível fisicamente pela parede selada. Isso é intencional, não uma inconsistência: a parede já comunica "você não pode chegar aí ainda", e ver a recompensa ao longe é um incentivo a resolver o puzzle, diferente do caso do sinal oculto, onde não havia nenhuma barreira física e o marcador visível contradiria o próprio scanner dizendo "sem sinal".
+
+### `TileType 'sealed'` está fixado a um único puzzle (limitação assumida)
+
+**Decisão:** o tile `sealed` sempre verifica `solvedPuzzles.has('ruins-puzzle-01')` - o id do puzzle está fixo no código (`SEALED_TILE_PUZZLE_ID`), não é um dado por tile.
+
+**Motivo:** só existe um puzzle no MVP, então não há ambiguidade sobre qual puzzle destrava qual área seladas. Documentado explicitamente (no tipo `TileType` e no `GameCanvas`) como uma simplificação que precisará de metadado por tile (ex: `{ type: 'sealed', puzzleId }`) se um segundo puzzle com área selada aparecer.
+
+### Bug evitado por pouco: ponto de retorno dentro de área já gateada
+
+**Contexto:** ao definir o ponto de spawn para quando o jogador volta da Ancient Ruins para a Landing Zone, a primeira escolha (`(17,11)`) caía **dentro** da alcova magnética da Fase 6.
+
+**O problema:** um jogador sem o upgrade Magnetic Boots que voltasse para esse ponto ficaria fisicamente preso - a única saída da alcova é a hazard tile, intransponível sem o upgrade. Um softlock real.
+
+**Como foi pego:** relendo a posição escolhida contra o layout da Fase 6 antes de testar no navegador, não durante o teste - vale a pena revisar pontos de spawn/teleporte contra toda a geometria de colisão da região de destino, não só contra os objetos visíveis nela.
+
+**Correção:** ponto de retorno movido para `(10,10)`, uma área aberta longe de qualquer estrutura gateada.
+
 ### Ambiente de teste `node`, não `jsdom`
 
 **Contexto:** o Vitest precisa de um ambiente de execução (`node` ou `jsdom`, que simula DOM de navegador).

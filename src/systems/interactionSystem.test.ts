@@ -47,4 +47,39 @@ describe('findNearestInteractable', () => {
 
     expect(found?.id).toBe('perto');
   });
+
+  it('ignora objeto que exige um puzzle ainda nao resolvido', () => {
+    const objects: WorldObject[] = [
+      {
+        id: 'reward-01',
+        interactable: true,
+        position: { x: 105, y: 100 },
+        requiresPuzzleSolved: 'ruins-puzzle-01',
+      },
+    ];
+
+    const found = findNearestInteractable({ x: 100, y: 100 }, objects, 20);
+
+    expect(found).toBeNull();
+  });
+
+  it('detecta o objeto quando o puzzle exigido ja esta resolvido', () => {
+    const objects: WorldObject[] = [
+      {
+        id: 'reward-01',
+        interactable: true,
+        position: { x: 105, y: 100 },
+        requiresPuzzleSolved: 'ruins-puzzle-01',
+      },
+    ];
+
+    const found = findNearestInteractable(
+      { x: 100, y: 100 },
+      objects,
+      20,
+      new Set(['ruins-puzzle-01']),
+    );
+
+    expect(found?.id).toBe('reward-01');
+  });
 });

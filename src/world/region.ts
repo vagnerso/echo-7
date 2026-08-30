@@ -4,8 +4,12 @@ import type { Vector2 } from '@/entities/player';
 /**
  * 'hazard': bloqueia colisao como uma parede, exceto para quem tiver o
  * upgrade Magnetic Boots instalado (Fase 6).
+ * 'sealed': bloqueia colisao como uma parede ate o puzzle 'ruins-puzzle-01'
+ * ser resolvido (Fase 7). So existe um puzzle no MVP, entao nao ha
+ * ambiguidade sobre qual puzzle destrava - se um segundo aparecer, este
+ * tipo passa a precisar de metadado por tile em vez de um id fixo.
  */
-export type TileType = 'floor' | 'wall' | 'hazard';
+export type TileType = 'floor' | 'wall' | 'hazard' | 'sealed';
 
 export interface ScanInfo {
   label: string;
@@ -35,6 +39,12 @@ export interface WorldObject {
    * de "ativar/alternar" de um interactable sem collectible.
    */
   collectible?: InventoryItem;
+  /** Se true, o objeto so aparece/responde a interacao depois do puzzle indicado ser resolvido (Fase 7). */
+  requiresPuzzleSolved?: string;
+  /** Interagir (tecla E) muda a regiao atual e reposiciona o jogador no ponto de entrada indicado (Fase 7). */
+  exit?: { toRegionId: string; spawnPosition: Vector2 };
+  /** Interagir (tecla E) ativa este switch dentro do puzzle indicado (Fase 7). */
+  puzzleSwitch?: { puzzleId: string; switchId: string };
 }
 
 export interface Region {

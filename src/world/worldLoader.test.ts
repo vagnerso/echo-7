@@ -5,6 +5,7 @@ import {
   getHazardTiles,
   getRegionObstacles,
   getRegionSize,
+  getSealedTiles,
 } from './worldLoader';
 
 function fixtureRegion(): Region {
@@ -70,6 +71,22 @@ describe('getHazardTiles', () => {
     expect(hazards).toHaveLength(2);
     expect(hazards).toContainEqual({ x: 10, y: 0, width: 10, height: 10 });
     expect(hazards).toContainEqual({ x: 10, y: 10, width: 10, height: 10 });
+  });
+});
+
+describe('getSealedTiles', () => {
+  it('gera um AABB para cada tile sealed', () => {
+    const region: Region = {
+      id: 'test-region',
+      name: 'Test Region',
+      tileSize: 10,
+      tiles: [['sealed', 'floor']],
+      objects: [],
+    };
+
+    const sealed = getSealedTiles(region);
+
+    expect(sealed).toEqual([{ x: 0, y: 0, width: 10, height: 10 }]);
   });
 });
 

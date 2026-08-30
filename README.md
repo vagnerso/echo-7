@@ -61,8 +61,8 @@ A estrutura completa está detalhada em [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - [x] Fase 4 — Scanner
 - [x] Fase 5 — Inventory
 - [x] Fase 6 — Upgrades
-- [ ] Fase 7 — Puzzles *(em andamento)*
-- [ ] Fase 8 — Narrative (Memory Fragments, missão, final da vertical slice)
+- [x] Fase 7 — Puzzles (sistema de sequência + Região 2/Ancient Ruins; Puzzle #2 fica com a Região 3 na Fase 8)
+- [ ] Fase 8 — Narrative (Memory Fragments, missão, Região 3/Signal Core, Puzzle #2, final da vertical slice) *(em andamento)*
 - [ ] Fase 9 — Polish
 - [ ] Fase 10 — Release (build, GitHub Pages, documentação final)
 

@@ -16,6 +16,8 @@ describe('gameStore', () => {
       inventory: [],
       inventoryCapacity: 5,
       installedUpgrades: new Set(),
+      currentRegionId: 'region-1',
+      solvedPuzzles: new Set(),
     });
   });
 
@@ -199,5 +201,21 @@ describe('gameStore', () => {
 
     expect(useGameStore.getState().installedUpgrades.size).toBe(1);
     expect(useGameStore.getState().inventory).toHaveLength(0);
+  });
+
+  it('setCurrentRegion atualiza a regiao atual', () => {
+    useGameStore.getState().setCurrentRegion('region-2');
+
+    expect(useGameStore.getState().currentRegionId).toBe('region-2');
+  });
+
+  it('markPuzzleSolved marca o puzzle como resolvido e e idempotente', () => {
+    useGameStore.getState().markPuzzleSolved('ruins-puzzle-01');
+    useGameStore.getState().markPuzzleSolved('ruins-puzzle-01');
+
+    expect(useGameStore.getState().solvedPuzzles.size).toBe(1);
+    expect(useGameStore.getState().solvedPuzzles.has('ruins-puzzle-01')).toBe(
+      true,
+    );
   });
 });

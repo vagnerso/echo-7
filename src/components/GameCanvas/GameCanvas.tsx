@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
-import { LANDING_ZONE } from '@/content/regions';
+import { PUZZLES } from '@/content/puzzles';
+import { REGIONS } from '@/content/regions';
 import {
   type Camera,
   createCamera,
@@ -10,11 +11,13 @@ import {
 import { computeCanvasSize } from '@/engine/canvasSize';
 import { InputManager } from '@/engine/inputManager';
 import { createPlayer, type Player, type Vector2 } from '@/entities/player';
+import type { Puzzle } from '@/entities/puzzle';
 import { useGameLoop } from '@/hooks/useGameLoop';
 import type { AABB } from '@/systems/collisionSystem';
 import { resolveCollisions } from '@/systems/collisionSystem';
 import { findNearestInteractable } from '@/systems/interactionSystem';
 import { updatePlayerMovement } from '@/systems/movementSystem';
+import { activateSwitch } from '@/systems/puzzleSystem';
 import {
   createDiscoveryFromObject,
   findNearestScannable,
@@ -23,23 +26,56 @@ import { findInstallableUpgrades } from '@/systems/upgradeSystem';
 import { useGameStore } from '@/state/gameStore';
 import { useUiStore } from '@/state/uiStore';
 import type { Region, WorldObject } from '@/world/region';
-import { getHazardTiles, getRegionObstacles } from '@/world/worldLoader';
+import {
+  getHazardTiles,
+  getRegionObstacles,
+  getSealedTiles,
+} from '@/world/worldLoader';
 
 import styles from './GameCanvas.module.css';
 
-const CURRENT_REGION: Region = LANDING_ZONE;
-const REGION_OBSTACLES: readonly AABB[] = getRegionObstacles(CURRENT_REGION);
-const HAZARD_TILES: readonly AABB[] = getHazardTiles(CURRENT_REGION);
+interface RegionData {
+  region: Region;
+  walls: readonly AABB[];
+  hazards: readonly AABB[];
+  sealed: readonly AABB[];
+}
+
+const REGION_DATA: Record<string, RegionData> = Object.fromEntries(
+  Object.values(REGIONS).map((region) => [
+    region.id,
+    {
+      region,
+      walls: getRegionObstacles(region),
+      hazards: getHazardTiles(region),
+      sealed: getSealedTiles(region),
+    },
+  ]),
+);
+
+const PUZZLES_BY_ID: Record<string, Puzzle> = Object.fromEntries(
+  PUZZLES.map((puzzle) => [puzzle.id, puzzle]),
+);
+
+// So existe um puzzle no MVP - o tile 'sealed' sempre se refere a ele (ver
+// nota em world/region.ts). Um segundo puzzle exigiria tiles 'sealed' com
+// metadado por tile em vez desta constante fixa.
+const SEALED_TILE_PUZZLE_ID = 'ruins-puzzle-01';
 
 const PLAYER_COLOR = '#5ee6c8';
 const WALL_COLOR = 'rgba(94, 230, 200, 0.12)';
 const WALL_BORDER_COLOR = 'rgba(94, 230, 200, 0.4)';
 const HAZARD_COLOR = 'rgba(230, 120, 90, 0.18)';
 const HAZARD_BORDER_COLOR = 'rgba(230, 120, 90, 0.6)';
+const SEALED_COLOR = 'rgba(170, 120, 230, 0.18)';
+const SEALED_BORDER_COLOR = 'rgba(170, 120, 230, 0.6)';
 const DECORATION_COLOR = 'rgba(216, 219, 226, 0.5)';
 const INTERACTABLE_COLOR = 'rgba(230, 170, 94, 0.7)';
 const INTERACTABLE_ACTIVATED_COLOR = 'rgba(94, 230, 140, 0.8)';
 const COLLECTIBLE_COLOR = 'rgba(240, 210, 90, 0.85)';
+const EXIT_COLOR = 'rgba(150, 170, 240, 0.8)';
+const SWITCH_COLOR = 'rgba(170, 120, 230, 0.6)';
+const SWITCH_ACTIVE_COLOR = 'rgba(200, 160, 255, 0.95)';
 const HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.9)';
 const SCANNABLE_COLOR = 'rgba(120, 170, 255, 0.7)';
 
@@ -72,52 +108,27 @@ function renderPlayer(
   ctx.fill();
 }
 
-function renderWalls(
+function renderTiles(
   ctx: CanvasRenderingContext2D,
-  walls: readonly AABB[],
+  tiles: readonly AABB[],
+  fillColor: string,
+  borderColor: string,
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
 ): void {
-  ctx.fillStyle = WALL_COLOR;
-  ctx.strokeStyle = WALL_BORDER_COLOR;
+  ctx.fillStyle = fillColor;
+  ctx.strokeStyle = borderColor;
 
-  for (const wall of walls) {
+  for (const tile of tiles) {
     const screenTopLeft = worldToScreen(
-      { x: wall.x, y: wall.y },
+      { x: tile.x, y: tile.y },
       camera,
       canvasWidth,
       canvasHeight,
     );
-    ctx.fillRect(screenTopLeft.x, screenTopLeft.y, wall.width, wall.height);
-    ctx.strokeRect(screenTopLeft.x, screenTopLeft.y, wall.width, wall.height);
-  }
-}
-
-function renderHazards(
-  ctx: CanvasRenderingContext2D,
-  hazards: readonly AABB[],
-  camera: Camera,
-  canvasWidth: number,
-  canvasHeight: number,
-): void {
-  ctx.fillStyle = HAZARD_COLOR;
-  ctx.strokeStyle = HAZARD_BORDER_COLOR;
-
-  for (const hazard of hazards) {
-    const screenTopLeft = worldToScreen(
-      { x: hazard.x, y: hazard.y },
-      camera,
-      canvasWidth,
-      canvasHeight,
-    );
-    ctx.fillRect(screenTopLeft.x, screenTopLeft.y, hazard.width, hazard.height);
-    ctx.strokeRect(
-      screenTopLeft.x,
-      screenTopLeft.y,
-      hazard.width,
-      hazard.height,
-    );
+    ctx.fillRect(screenTopLeft.x, screenTopLeft.y, tile.width, tile.height);
+    ctx.strokeRect(screenTopLeft.x, screenTopLeft.y, tile.width, tile.height);
   }
 }
 
@@ -150,6 +161,7 @@ function renderInteractables(
   objects: readonly WorldObject[],
   activated: ReadonlyMap<string, boolean>,
   nearestId: string | null,
+  getPuzzleProgress: (puzzleId: string) => readonly string[],
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
@@ -172,10 +184,27 @@ function renderInteractables(
       ctx.stroke();
     }
 
+    if (object.exit) {
+      // Retangulo tipo "porta", para diferenciar de todo o resto ate ter arte de verdade (Fase 9).
+      ctx.fillStyle = EXIT_COLOR;
+      ctx.fillRect(screenPosition.x - 8, screenPosition.y - 12, 16, 24);
+      continue;
+    }
+
     if (object.collectible) {
       // Item coletavel: quadrado, para diferenciar de um interagivel fixo (console) ate ter arte de verdade (Fase 9).
       ctx.fillStyle = COLLECTIBLE_COLOR;
       ctx.fillRect(screenPosition.x - 8, screenPosition.y - 8, 16, 16);
+      continue;
+    }
+
+    if (object.puzzleSwitch) {
+      const progress = getPuzzleProgress(object.puzzleSwitch.puzzleId);
+      const isActive = progress.includes(object.puzzleSwitch.switchId);
+      ctx.fillStyle = isActive ? SWITCH_ACTIVE_COLOR : SWITCH_COLOR;
+      ctx.beginPath();
+      ctx.arc(screenPosition.x, screenPosition.y, 10, 0, Math.PI * 2);
+      ctx.fill();
       continue;
     }
 
@@ -231,20 +260,27 @@ function renderScannables(
   }
 }
 
+const INITIAL_SPAWN: Vector2 = { x: 200, y: 200 };
+
 export function GameCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const playerRef = useRef<Player>(createPlayer({ x: 200, y: 200 }));
-  const previousPositionRef = useRef<Vector2>({ x: 200, y: 200 });
-  const cameraRef = useRef<Camera>(createCamera({ x: 200, y: 200 }));
+  const playerRef = useRef<Player>(createPlayer(INITIAL_SPAWN));
+  const previousPositionRef = useRef<Vector2>({ ...INITIAL_SPAWN });
+  const cameraRef = useRef<Camera>(createCamera(INITIAL_SPAWN));
   const inputRef = useRef<InputManager | null>(null);
   const nearestInteractableRef = useRef<WorldObject | null>(null);
   const nearestScannableRef = useRef<WorldObject | null>(null);
   const activatedInteractablesRef = useRef<Map<string, boolean>>(new Map());
   // Ids de objetos coletaveis ja recolhidos - somem do mundo (nao renderizam,
   // nao contam mais para interacao/scan). Content/regions.ts continua
-  // imutavel; isso e estado de sessao, nao de conteudo.
+  // imutavel; isso e estado de sessao, nao de conteudo. Unico Set global
+  // (nao por regiao) porque os ids de objeto sao unicos entre regioes.
   const collectedItemsRef = useRef<Set<string>>(new Set());
+  // Progresso parcial de cada puzzle (quais switches ja ativados nesta
+  // tentativa) - diferente de "resolvido" (gameStore.solvedPuzzles), que e
+  // permanente. Perder o progresso parcial ao recarregar e aceitavel.
+  const puzzleProgressRef = useRef<Map<string, string[]>>(new Map());
 
   useEffect(() => {
     const container = containerRef.current;
@@ -283,6 +319,10 @@ export function GameCanvas() {
       const input = inputRef.current;
       if (!input) return;
 
+      const regionId = useGameStore.getState().currentRegionId;
+      const regionData = REGION_DATA[regionId];
+      if (!regionData) return;
+
       const player = playerRef.current;
       const beforeMove = { ...player.position };
       previousPositionRef.current = beforeMove;
@@ -292,9 +332,14 @@ export function GameCanvas() {
       const hasMagneticBoots = useGameStore
         .getState()
         .installedUpgrades.has('magnetic-boots');
-      const obstacles = hasMagneticBoots
-        ? REGION_OBSTACLES
-        : [...REGION_OBSTACLES, ...HAZARD_TILES];
+      const puzzleSolved = useGameStore
+        .getState()
+        .solvedPuzzles.has(SEALED_TILE_PUZZLE_ID);
+      const obstacles = [
+        ...regionData.walls,
+        ...(hasMagneticBoots ? [] : regionData.hazards),
+        ...(puzzleSolved ? [] : regionData.sealed),
+      ];
 
       const resolved = resolveCollisions(
         beforeMove,
@@ -305,18 +350,44 @@ export function GameCanvas() {
       player.position.x = resolved.x;
       player.position.y = resolved.y;
 
-      const activeObjects = CURRENT_REGION.objects.filter(
+      const activeObjects = regionData.region.objects.filter(
         (object) => !collectedItemsRef.current.has(object.id),
       );
 
       const nearestInteractable = findNearestInteractable(
         player.position,
         activeObjects,
+        undefined,
+        useGameStore.getState().solvedPuzzles,
       );
       nearestInteractableRef.current = nearestInteractable;
 
       if (nearestInteractable && input.wasActionJustPressed('interact')) {
-        if (nearestInteractable.collectible) {
+        if (nearestInteractable.exit) {
+          const { toRegionId, spawnPosition } = nearestInteractable.exit;
+          useGameStore.getState().setCurrentRegion(toRegionId);
+
+          player.position.x = spawnPosition.x;
+          player.position.y = spawnPosition.y;
+          previousPositionRef.current = { ...spawnPosition };
+          cameraRef.current = createCamera(spawnPosition);
+          nearestInteractableRef.current = null;
+          nearestScannableRef.current = null;
+        } else if (nearestInteractable.puzzleSwitch) {
+          const { puzzleId, switchId } = nearestInteractable.puzzleSwitch;
+          const puzzle = PUZZLES_BY_ID[puzzleId];
+
+          if (puzzle) {
+            const currentProgress =
+              puzzleProgressRef.current.get(puzzleId) ?? [];
+            const result = activateSwitch(puzzle, currentProgress, switchId);
+            puzzleProgressRef.current.set(puzzleId, result.progress);
+
+            if (result.solved) {
+              useGameStore.getState().markPuzzleSolved(puzzleId);
+            }
+          }
+        } else if (nearestInteractable.collectible) {
           const added = useGameStore
             .getState()
             .addItem(nearestInteractable.collectible);
@@ -391,7 +462,7 @@ export function GameCanvas() {
         if (nearestScannable) {
           const discovery = createDiscoveryFromObject(
             nearestScannable,
-            CURRENT_REGION.id,
+            regionData.region.id,
           );
           useUiStore.getState().setCurrentScanTarget(discovery);
           if (discovery) {
@@ -409,6 +480,9 @@ export function GameCanvas() {
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx) return;
 
+      const regionData = REGION_DATA[useGameStore.getState().currentRegionId];
+      if (!regionData) return;
+
       ctx.fillStyle = '#12141c';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -422,12 +496,37 @@ export function GameCanvas() {
       const camera = cameraRef.current;
       updateCameraFollow(camera, renderPosition);
 
-      const activeObjects = CURRENT_REGION.objects.filter(
+      const activeObjects = regionData.region.objects.filter(
         (object) => !collectedItemsRef.current.has(object.id),
       );
 
-      renderWalls(ctx, REGION_OBSTACLES, camera, canvas.width, canvas.height);
-      renderHazards(ctx, HAZARD_TILES, camera, canvas.width, canvas.height);
+      renderTiles(
+        ctx,
+        regionData.walls,
+        WALL_COLOR,
+        WALL_BORDER_COLOR,
+        camera,
+        canvas.width,
+        canvas.height,
+      );
+      renderTiles(
+        ctx,
+        regionData.hazards,
+        HAZARD_COLOR,
+        HAZARD_BORDER_COLOR,
+        camera,
+        canvas.width,
+        canvas.height,
+      );
+      renderTiles(
+        ctx,
+        regionData.sealed,
+        SEALED_COLOR,
+        SEALED_BORDER_COLOR,
+        camera,
+        canvas.width,
+        canvas.height,
+      );
       renderDecorations(
         ctx,
         activeObjects,
@@ -440,6 +539,7 @@ export function GameCanvas() {
         activeObjects,
         activatedInteractablesRef.current,
         nearestInteractableRef.current?.id ?? null,
+        (puzzleId) => puzzleProgressRef.current.get(puzzleId) ?? [],
         camera,
         canvas.width,
         canvas.height,
