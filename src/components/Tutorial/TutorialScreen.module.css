@@ -1,0 +1,74 @@
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: #0b0d12;
+  color: #d8dbe2;
+  font-family: ui-monospace, Consolas, monospace;
+  letter-spacing: 0.08em;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.title {
+  font-size: 2rem;
+  margin: 0;
+  color: #5ee6c8;
+  text-shadow: 0 0 16px rgba(94, 230, 200, 0.5);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 460px;
+}
+
+.sectionLabel {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.briefingText {
+  margin: 0;
+  line-height: 1.6;
+  text-align: center;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+
+.controlsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 220px;
+}
+
+.controlsRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 0.9rem;
+}
+
+.controlsKeys {
+  color: #5ee6c8;
+}
+
+.controlsAction {
+  opacity: 0.75;
+}
+
+.backButton {
+  composes: button from '@/styles/hudPanel.module.css';
+  margin-top: 0.5rem;
+  padding: 0.75rem 1.5rem;
+}

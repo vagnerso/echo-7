@@ -743,3 +743,36 @@ Dois problemas reportados pelo desenvolvedor depois de testar a Fase A num celul
 **Alternativa considerada:** aumentar ainda mais o deslocamento do `bottom` - descartada por ser um ajuste manual calibrado para o comprimento do texto de UM fragmento específico; qualquer fragmento mais longo (ou fonte do usuário maior via acessibilidade do navegador) voltaria a colidir. Centralizar verticalmente resolve a causa (posição fixa competindo por espaço com outro elemento de altura variável) em vez de calibrar a distância uma vez.
 
 **Lição:** os dois problemas só apareceram em teste num dispositivo real, não na emulação de viewport usada para verificar a Fase A - a emulação (Playwright + viewport de iPhone) confirma layout e alcançabilidade por hit-test, mas não substitui jogar de verdade uma sessão inteira (abrir e fechar o inventário repetidamente, coletar um fragmento com texto longo).
+
+## v2.0 — Fase B: Tutorial ("HOW TO PLAY")
+
+Pedido do desenvolvedor: uma seção no menu com um tutorial/briefing, para o jogador entender o objetivo antes de jogar - sem spoiler de história (decidido no plano da v2.0), coerente com a seção 6 do prompt mestre ("a história deve ser contada principalmente através de... o jogador deve montar mentalmente o que aconteceu").
+
+### Lista de controles extraída para `engine/controlsDisplay.ts`, não duplicada
+
+**Contexto:** `ControlsHint.tsx` (HUD in-game, Fase 4 do polish visual) já montava a lista de controles a partir de `ACTION_TO_KEYS`/`formatKeyLabel` (`engine/inputManager.ts`). A tela de tutorial precisa exatamente da mesma lista.
+
+**Decisão:** `formatKeyGroup` e `CONTROL_ROWS` saíram de `ControlsHint.tsx` para um módulo novo, `engine/controlsDisplay.ts` - ambos os componentes (`ControlsHint`, `TutorialScreen`) importam de lá.
+
+**Alternativa considerada:** duplicar a lista em `TutorialScreen.tsx` (só 4 linhas) - descartada pelo mesmo motivo já registrado quando `ControlsHint` foi criado: duplicar o mapeamento de teclas cria uma segunda fonte que pode desalinhar silenciosamente de `ACTION_TO_KEYS` se o esquema de controles mudar.
+
+**Por que `engine/`, não dentro de um dos componentes:** a lista deriva de dados do `engine/inputManager.ts` e não depende de React - cabe na mesma camada, ao lado de `formatKeyLabel`, e fica igualmente acessível para qualquer novo consumidor futuro sem criar uma dependência de componente para componente.
+
+### `TutorialScreen` replica o esqueleto do `SettingsScreen`, sem generalizar em um "componente de tela"
+
+**Decisão:** `TutorialScreen.tsx` (`{ onBack }`, `useTranslations()`, mesma estrutura de `.screen`/`.title`/`.section`/botão de voltar via `composes: button`) repete o padrão manualmente, em vez de extrair um componente `Screen` genérico compartilhado entre `SettingsScreen`/`TutorialScreen`/`MainMenu`/`EndingScreen`.
+
+**Motivo:** só existem 4 telas cheias no projeto, cada uma com pequenas diferenças de layout (número de seções, se tem formulário ou só texto) - uma abstração agora encapsularia 3-4 linhas de CSS repetidas em troca de indireção; vale revisitar se uma 5ª tela mostrar um padrão mais forte se repetindo.
+
+### Conteúdo do briefing: premissa já pública, não lore nova
+
+**Decisão:** o texto de "MISSION BRIEFING" resume o que já está no README/prompt mestre (ECHO-7, robô explorador, sinal misterioso, planeta presumidamente abandonado) - não menciona Kade, as ruínas, o Signal Core, nem qualquer coisa revelada só nos fragmentos de memória ou no final.
+
+**Motivo:** confirmado no plano da v2.0 antes de implementar - o objetivo é o jogador entender o que fazer (explorar, escanear, coletar), não o que a história significa. Rascunho de texto narrativo segue a mesma divisão já documentada em `AI_DEVELOPMENT.md` (IA propõe, desenvolvedor ajusta tom).
+
+### Botão novo no menu não reordena os existentes
+
+**Decisão:** "HOW TO PLAY" entra como 3º botão (depois de NEW GAME/CONTINUE, antes de SETTINGS), sem alterar a ordem nem o estilo dos outros três.
+
+**Motivo:** mantém `NEW GAME`/`CONTINUE` nas duas primeiras posições (as ações mais prováveis para quem já conhece o jogo), com o tutorial posicionado antes de `SETTINGS` por ser mais relevante a um jogador novo decidindo o que fazer a seguir.
+

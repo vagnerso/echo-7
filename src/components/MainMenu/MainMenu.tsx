@@ -5,6 +5,7 @@ import styles from './MainMenu.module.css';
 export interface MainMenuProps {
   onNewGame: () => void;
   onContinue: () => void;
+  onOpenTutorial: () => void;
   onOpenSettings: () => void;
   hasSave: boolean;
 }
@@ -12,6 +13,7 @@ export interface MainMenuProps {
 export function MainMenu({
   onNewGame,
   onContinue,
+  onOpenTutorial,
   onOpenSettings,
   hasSave,
 }: MainMenuProps) {
@@ -34,6 +36,13 @@ export function MainMenu({
           title={hasSave ? undefined : t.mainMenu.noSaveTooltip}
         >
           {t.mainMenu.continueGame}
+        </button>
+        <button
+          type="button"
+          className={styles.button}
+          onClick={onOpenTutorial}
+        >
+          {t.mainMenu.howToPlay}
         </button>
         <button
           type="button"

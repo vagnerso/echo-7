@@ -7,6 +7,7 @@ export const en: Translations = {
     newGame: 'NEW GAME',
     continueGame: 'CONTINUE',
     settings: 'SETTINGS',
+    howToPlay: 'HOW TO PLAY',
     noSaveTooltip: 'No saved progress yet',
   },
   mission: {
@@ -67,6 +68,13 @@ export const en: Translations = {
       green: 'Green',
       azure: 'Azure',
     },
+  },
+  tutorial: {
+    title: 'HOW TO PLAY',
+    briefingTitle: 'MISSION BRIEFING',
+    briefingText:
+      "You are ECHO-7, an exploration unit sent to investigate a signal from a planet presumed abandoned. Explore the terrain, scan anomalies, and recover what you can. The rest, you'll have to piece together yourself.",
+    controlsTitle: 'CONTROLS',
   },
   objectives: {
     exploreLandingZone: 'Explore the Landing Zone.',

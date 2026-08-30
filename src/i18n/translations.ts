@@ -41,6 +41,7 @@ export interface Translations {
     newGame: string;
     continueGame: string;
     settings: string;
+    howToPlay: string;
     noSaveTooltip: string;
   };
   mission: {
@@ -94,6 +95,13 @@ export interface Translations {
     robotColorLabel: string;
     back: string;
     robotColors: Record<RobotColorKey, string>;
+  };
+  /** `back` nao esta aqui de proposito - reaproveita t.settings.back, mesmo rotulo, mesma tela-padrao (ver SettingsScreen). */
+  tutorial: {
+    title: string;
+    briefingTitle: string;
+    briefingText: string;
+    controlsTitle: string;
   };
   objectives: Record<ObjectiveKey, string>;
   /** Nome de exibicao de um item/componente, indexado por InventoryItem.id. */
