@@ -128,6 +128,8 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para o propósito de cada pas
 - [x] Polish visual de mapas e itens — glow/contorno/brilho especular consistente em todo objeto do mundo (porta, coletável, switch, fragmento, scannable), faixas de risco nos tiles de hazard, ícone de cadeado nos tiles selados, bisel nas paredes, cor por tipo de item compartilhada entre o mundo e o inventário
 - [x] Correção: entrada secreta da Buried Cache não vazava mais um marcador visível no mapa antes do Deep Scanner instalado
 - [x] Anatomia do robô — pés com contorno e friso de esteira, braços laterais com balanço em contrafase ao caminhar, sinal de radar (anéis na antena) quando o scanner está ativo
+- [x] Correção mobile: câmera renderizava o mundo em 1/`devicePixelRatio` do tamanho devido em telas de alta densidade (celular), fazendo tudo parecer mais "longe" que no desktop
+- [x] Correção mobile: toque longo num botão do D-pad podia selecionar texto de outro painel da tela (seleção de texto desabilitada globalmente - o jogo não tem nenhum campo de texto)
 
 A vertical slice está completa: dá para jogar do início (Landing Zone) até o final do primeiro arco narrativo (Signal Core), com progresso salvo automaticamente. Próximos passos possíveis: continuação da história (o final termina com um gancho proposital), mais idiomas, sprites/arte de verdade (hoje 100% vetorial).
 

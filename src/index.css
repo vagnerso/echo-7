@@ -19,3 +19,20 @@ body {
   color: #d8dbe2;
   color-scheme: dark;
 }
+
+/*
+ * Jogo, nao pagina de texto - nao ha nenhum campo de input ou conteudo que
+ * precise ser selecionavel. Sem isso, em touch, segurar um botao do D-pad
+ * por alguns segundos podia disparar o gesto nativo de selecao de texto do
+ * navegador (Android/iOS), que entao selecionava o texto mais proximo na
+ * pagina (ex: o painel do scanner) mesmo o toque tendo comecado em cima do
+ * botao. -webkit-touch-callout desliga tambem o menu de copiar/colar que
+ * aparece no toque longo em iOS.
+ */
+*,
+*::before,
+*::after {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

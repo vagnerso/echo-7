@@ -913,3 +913,31 @@ Pedido do desenvolvedor: deixar o ECHO-7 mais bonito - pés mais destacados, bra
 **Motivo:** evitar que os dois desenhos do mesmo robô (menu vs. jogo) divirjam visualmente depois desta fase - o retrato do menu já existia como cópia deliberada da anatomia do robô do canvas (ver decisão da fase anterior, "Retrato vetorial do ECHO-7"), então manter os dois em sincronia é a continuação natural dessa decisão, não uma nova.
 
 **Verificação:** conferido visualmente via Playwright com zoom (deviceScaleFactor alto + `clip` na região do robô) - parado, andando (braço/perna em contrafase visíveis) e com o scanner ligado (anéis visíveis na antena, ausentes quando desligado). Typecheck, oxlint e os 123 testes automatizados sem alteração - mudança 100% de renderização.
+
+## Correções de mobile: câmera "longe" e seleção de texto vazando do D-pad
+
+Dois problemas reportados pelo desenvolvedor jogando em celular de verdade.
+
+### Câmera parecia muito mais longe no celular do que no desktop
+
+**Causa raiz:** `computeCanvasSize` dimensiona o *buffer* do canvas em `containerSize * devicePixelRatio` (para não borrar em telas retina), mas o `render()` desenhava o mundo usando `canvas.width`/`canvas.height` (o buffer, em pixels de **dispositivo**) como se fossem pixels CSS, sem nenhum `ctx.scale`/`ctx.setTransform` compensando a diferença. Em desktop (`devicePixelRatio` quase sempre 1), buffer e pixels CSS coincidem e o bug fica invisível. Em celular (`devicePixelRatio` tipicamente 2-3), 1 unidade de mundo (ex: um tile de 64) ocupava só 64 pixels de um buffer 2-3x maior que a tela - ou seja, o tile aparecia visualmente em 1/2 ou 1/3 do tamanho devido, com todo o mundo (e a câmera, centrada no robô) parecendo muito mais "longe" do que no desktop.
+
+**Decisão:** `GameCanvas.tsx` passou a guardar o tamanho do canvas em pixels **CSS** (`canvasCssSizeRef`, preenchido no mesmo `resize()` que já calculava `styleWidth`/`styleHeight`). No início de cada `render()`, `ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0)` (com `scaleX/scaleY = canvas.width / cssWidth`) reescala o contexto para que 1 unidade de mundo volte a ocupar `scaleX` pixels de buffer - o valor certo para preencher a tela sem borrar. Todas as chamadas de `worldToScreen`/render que antes recebiam `canvas.width`/`canvas.height` (pixels de buffer) passaram a receber `canvasWidth`/`canvasHeight` (pixels CSS), já que depois do `setTransform` é nesse sistema de unidades que o resto do código desenha.
+
+**Alternativas consideradas:** aplicar um zoom-in adicional só em telas pequenas (ex: multiplicar por 1.5x quando `containerWidth < 500`).
+
+**Motivo:** a causa raiz não era "a câmera precisa de mais zoom no celular" - era um bug de escala que sempre existiu, só mascarado em telas com `devicePixelRatio` 1. Corrigir o `setTransform` resolve o problema pela raiz (mundo sempre no tamanho visual correto, em qualquer densidade de tela) em vez de adicionar um fator de zoom arbitrário por cima de um bug não corrigido - que exigiria escolher magic numbers por breakpoint e ainda deixaria o bug real (a inconsistência entre buffer e unidades de mundo) sem solução.
+
+**Verificação:** Playwright com `deviceScaleFactor: 3` (simulando um iPhone) - antes da correção um tile ocupava ~1/3 do tamanho visual do desktop; depois, robô e tiles renderizam no mesmo tamanho relativo à tela em qualquer densidade de pixel. Sem mudança nos 4 screenshots do README (todos capturados com `deviceScaleFactor` 1, onde `scaleX`/`scaleY` já eram implicitamente 1 - o bug só afeta densidades >1).
+
+### Toque longo num botão do D-pad selecionava texto de outro painel da tela
+
+**Causa raiz:** os botões do D-pad já tinham `touch-action: none; user-select: none` (`TouchControls.module.css`), mas nada no resto da página impedia o gesto nativo de seleção de texto por toque-e-segure do navegador (Android/iOS) - que, uma vez iniciado, seleciona o texto selecionável mais próximo do ponto de toque na página (ex: o painel do `ScannerOverlay`), independente de onde o toque começou.
+
+**Decisão:** `index.css` (reset global) ganhou `user-select: none` + `-webkit-user-select: none` + `-webkit-touch-callout: none` em `*`/`*::before`/`*::after`, ao lado do `box-sizing: border-box` que já era global.
+
+**Alternativas consideradas:** adicionar `user-select: none` só nos painéis de HUD (`ScannerOverlay`, `MissionHUD`, etc.) um por um.
+
+**Motivo:** ECHO-7 não tem nenhum campo de texto ou conteúdo que precise ser selecionável em lugar nenhum da interface (confirmado: zero `<input>`/`<textarea>` no projeto) - desabilitar globalmente resolve a causa (o gesto de seleção nunca deveria existir neste app) em vez de tapar buraco painel por painel, o que deixaria qualquer painel novo futuro vulnerável ao mesmo bug até alguém lembrar de adicionar a regra nele também.
+
+**Verificação:** Playwright emulando toque (`hasTouch: true`) - toque prolongado (2s) num botão do D-pad, seguido de `window.getSelection().toString()`, retorna string vazia.

@@ -979,6 +979,15 @@ export function GameCanvas() {
   const animationTimeRef = useRef<number>(0);
   const isMovingRef = useRef<boolean>(false);
   const groundTexturesRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  // Tamanho do canvas em pixels CSS (nao em pixels de buffer - ver
+  // computeCanvasSize/resize abaixo). O mundo e desenhado em unidades de
+  // pixel CSS (1 tile = 64 dessas unidades); o buffer real e maior em telas
+  // de alta densidade (devicePixelRatio > 1), entao o render() precisa desse
+  // valor para centralizar a camera e aplicar o ctx.setTransform correto.
+  const canvasCssSizeRef = useRef<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
   const transitionRef = useRef<TransitionState>({
     phase: 'idle',
     progress: 0,
@@ -1017,6 +1026,7 @@ export function GameCanvas() {
       canvas.height = height;
       canvas.style.width = `${styleWidth}px`;
       canvas.style.height = `${styleHeight}px`;
+      canvasCssSizeRef.current = { width: styleWidth, height: styleHeight };
     };
 
     resize();
@@ -1304,10 +1314,27 @@ export function GameCanvas() {
       const regionData = REGION_DATA[useGameStore.getState().currentRegionId];
       if (!regionData) return;
 
+      // O mundo (tiles, objetos, robo) e desenhado inteiro em unidades de
+      // pixel CSS - o buffer do canvas e maior nas telas de alta densidade
+      // (ver computeCanvasSize/resize). Sem este setTransform, cada unidade
+      // de mundo ocupava so 1 pixel de buffer em vez de `scaleX/scaleY`
+      // pixels - em celulares (devicePixelRatio 2-3) isso fazia tudo
+      // desenhar em 1/2 ou 1/3 do tamanho devido, com a camera parecendo
+      // "muito longe" do robo. setTransform (nao scale) porque e chamado
+      // toda vez no inicio do frame - reseta qualquer transform anterior em
+      // vez de acumular.
+      const cssSize = canvasCssSizeRef.current;
+      if (cssSize.width === 0 || cssSize.height === 0) return;
+      const scaleX = canvas.width / cssSize.width;
+      const scaleY = canvas.height / cssSize.height;
+      ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+      const canvasWidth = cssSize.width;
+      const canvasHeight = cssSize.height;
+
       // So aparece nas bordas do mapa, quando a camera mostra alem dos
       // limites do mundo - o resto da tela e coberto pela textura de chao.
       ctx.fillStyle = VOID_COLOR;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
       const player = playerRef.current;
       const previous = previousPositionRef.current;
@@ -1326,8 +1353,8 @@ export function GameCanvas() {
       const worldOrigin = worldToScreen(
         { x: 0, y: 0 },
         camera,
-        canvas.width,
-        canvas.height,
+        canvasWidth,
+        canvasHeight,
       );
       ctx.drawImage(groundTexture, worldOrigin.x, worldOrigin.y);
 
@@ -1341,8 +1368,8 @@ export function GameCanvas() {
         WALL_COLOR,
         WALL_BORDER_COLOR,
         camera,
-        canvas.width,
-        canvas.height,
+        canvasWidth,
+        canvasHeight,
         decorateWallTile,
       );
       renderTiles(
@@ -1351,8 +1378,8 @@ export function GameCanvas() {
         HAZARD_COLOR,
         HAZARD_BORDER_COLOR,
         camera,
-        canvas.width,
-        canvas.height,
+        canvasWidth,
+        canvasHeight,
         decorateHazardTile,
       );
       renderTiles(
@@ -1361,16 +1388,16 @@ export function GameCanvas() {
         SEALED_COLOR,
         SEALED_BORDER_COLOR,
         camera,
-        canvas.width,
-        canvas.height,
+        canvasWidth,
+        canvasHeight,
         decorateSealedTile,
       );
       renderDecorations(
         ctx,
         activeObjects,
         camera,
-        canvas.width,
-        canvas.height,
+        canvasWidth,
+        canvasHeight,
       );
       renderInteractables(
         ctx,
@@ -1381,8 +1408,8 @@ export function GameCanvas() {
         useGameStore.getState().solvedPuzzles,
         useGameStore.getState().installedUpgrades.has('deep-scanner'),
         camera,
-        canvas.width,
-        canvas.height,
+        canvasWidth,
+        canvasHeight,
       );
       renderScannables(
         ctx,
@@ -1390,22 +1417,22 @@ export function GameCanvas() {
         nearestScannableRef.current?.id ?? null,
         useGameStore.getState().installedUpgrades.has('deep-scanner'),
         camera,
-        canvas.width,
-        canvas.height,
+        canvasWidth,
+        canvasHeight,
       );
       renderParticles(
         ctx,
         particlesRef.current,
         camera,
-        canvas.width,
-        canvas.height,
+        canvasWidth,
+        canvasHeight,
       );
 
       const screenPosition = worldToScreen(
         renderPosition,
         camera,
-        canvas.width,
-        canvas.height,
+        canvasWidth,
+        canvasHeight,
       );
       const robotColor = useSettingsStore.getState().robotColor;
       const robotPalette =
@@ -1429,7 +1456,7 @@ export function GameCanvas() {
             ? Math.min(transition.progress, 1)
             : Math.max(1 - transition.progress, 0);
         ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
       }
     },
   });
