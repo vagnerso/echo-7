@@ -147,6 +147,19 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para o propósito de cada pas
 - [x] The Buried Chord (`region-6`) — área secreta dentro de Thousand Spires (exige o Deep Scanner), em escuridão quase total: o pulso do radar da antena (v2.1, antes só cosmético) ganhou função real, revelando um raio ao redor do robô por alguns segundos a cada scan. Labirinto com duas passagens (tiles de hazard, em linhas diferentes) exigindo as Magnetic Boots, terminando numa câmara com um puzzle próprio de 4 nós — resolvido quase às cegas, só com os pulsos de luz — que libera os 2 fragmentos finais
 - [x] Tela de conclusão do epílogo — coletar os dois fragmentos finais de The Buried Chord fecha o arco com uma tela própria (com o retrato do ECHO-7 e um tom de despedida), independente do final original do MVP
 
+**Correções e polish (pós-v3.0):**
+
+- [x] Correção: a saída da Landing Zone (`exit-to-ancient-ruins`) podia ser alcançada sem cruzar a passagem hazard nem instalar Magnetic Boots — porta movida para dentro da alcova magnética selada
+- [x] Correção: o nicho selado da Ancient Ruins tinha um lado sem parede, permitindo alcançar a porta do Signal Core sem resolver `ruins-puzzle-01` — nicho expandido para 2 células e porta movida para dentro
+- [x] Ícone de cadeado nos tiles selados agora muda para cadeado aberto (verde) assim que o puzzle correspondente é resolvido, em vez de continuar com aparência de trancado para sempre
+- [x] Signal Core ganhou um diagrama de energia no piso — conduítes ligando os 4 nós do puzzle ao núcleo central, com aneis de reator concêntricos, comunicando visualmente a mecânica da sala
+- [x] Landing Zone ganhou destroços da cápsula/nave (previstos desde o `PROMPT MESTRE`, nunca implementados) — fragmentos de casco metálico espalhados perto do ponto de pouso, visual próprio distinto das pedras já existentes
+- [x] Buried Cache aumentada (8x8 → 10x10) e detalhada — acampamento de escavação do Kade com escoramento de madeira, lanterna de emergência com brilho âmbar e a terra revolvida onde o drive (fragmento-08) foi desenterrado
+- [x] Thousand Spires detalhada mantendo a paleta fria deliberada — os 5 nós do puzzle agora são torres de verdade (silhueta + orbe no topo), com torres quebradas espalhadas pelo campo reforçando que só 5 das mil torres ainda funcionam
+- [x] Tela de final do MVP (`EndingScreen`) ganhou o mesmo painel "computador de bordo" (cantos cortados, scanline, glow) do resto da HUD, o retrato do ECHO-7 no topo e uma entrada em fade escalonada — mesma melhoria também alcança a tela de conclusão do epílogo, que reaproveita o CSS
+- [x] Correção: `console-01` (Landing Zone) só alternava de cor ao interagir, sem nenhum efeito — ganhou um 13º fragmento de memória (`fragment-13`, "Log 01", o registro automático da pequena base prevista desde o `PROMPT MESTRE`), coerente com o sistema de Memory Fragments já existente
+- [x] Nome da região atual exibido discretamente no HUD (painel de Objetivo) — `Region.name` (dado morto, sempre em inglês) removido em favor de `t.regionNames`, traduzido nos dois idiomas
+
 A vertical slice do MVP está completa (Landing Zone → Ancient Ruins → Signal Core), e o gancho do final agora tem uma continuação jogável inteira (Thousand Spires + The Buried Chord), com fechamento próprio, fechando o fio do Kade. Próximos passos possíveis: mais idiomas, sprites/arte de verdade (hoje 100% vetorial), ou um novo gancho a partir daqui.
 
 > Este roadmap é o registro histórico de fases já concluídas. Toda nova funcionalidade deve ser adicionada aqui como um novo item (ou uma nova seção de versão) assim que for concluída — ver regra correspondente no `CLAUDE.md`.

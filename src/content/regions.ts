@@ -46,7 +46,11 @@ function buildLandingZoneTiles(): TileType[][] {
   // Alcova magnetica (Fase 6): area de 2x2 (linhas 10-11, colunas 16-17)
   // selada por paredes, com uma unica entrada em hazard (linha10, col15) -
   // so atravessavel com o upgrade Magnetic Boots. decoration-02 fica dentro,
-  // como prova de que a area foi alcancada.
+  // como prova de que a area foi alcancada, e e tambem onde mora
+  // exit-to-ancient-ruins: a saida da Landing Zone so existe do lado de
+  // dentro da alcova de proposito, para o jogador precisar coletar um
+  // ancient-component e instalar Magnetic Boots antes de poder avancar para
+  // a Ancient Ruins (ver objects abaixo e docs/DECISIONS.md).
   tiles[9][16] = 'wall';
   tiles[9][17] = 'wall';
   tiles[12][16] = 'wall';
@@ -61,7 +65,6 @@ function buildLandingZoneTiles(): TileType[][] {
 
 export const LANDING_ZONE: Region = {
   id: 'region-1',
-  name: 'Landing Zone',
   tileSize: TILE_SIZE,
   tiles: buildLandingZoneTiles(),
   objects: [
@@ -73,10 +76,36 @@ export const LANDING_ZONE: Region = {
       id: 'decoration-02',
       position: { x: 16 * TILE_SIZE, y: 10 * TILE_SIZE },
     },
+    // Destroços da capsula/nave do ECHO-7 (PROMPT MESTRE pedia isso na
+    // Landing Zone desde o inicio, mas nunca tinha ganhado objeto/visual
+    // proprio) - espalhados perto do spawn (INITIAL_SPAWN em GameCanvas.tsx
+    // e ~col3/row3), como se a capsula tivesse se partido no impacto.
     {
+      id: 'wreckage-01',
+      decorationKind: 'wreckage',
+      position: { x: 3 * TILE_SIZE, y: 1 * TILE_SIZE },
+    },
+    {
+      id: 'wreckage-02',
+      decorationKind: 'wreckage',
+      position: { x: 4 * TILE_SIZE, y: 3 * TILE_SIZE },
+    },
+    {
+      id: 'wreckage-03',
+      decorationKind: 'wreckage',
+      position: { x: 2 * TILE_SIZE, y: 4 * TILE_SIZE },
+    },
+    {
+      // Antes so alternava de cor ao interagir, sem nenhum efeito - achado
+      // pelo desenvolvedor como um objeto de conteudo esquecido (provavelmente
+      // da Fase 3, quando o sistema de interacao foi criado). memoryFragment
+      // da o proposito de lore que faltava: o console da "pequena base" da
+      // Landing Zone (prevista no PROMPT MESTRE) reproduz um log da propria
+      // base, nao um pickup flutuante - ver fragment-13/docs/DECISIONS.md.
       id: 'console-01',
       interactable: true,
       position: { x: 8 * TILE_SIZE, y: 10 * TILE_SIZE },
+      memoryFragment: 'fragment-13',
     },
     {
       id: 'unknown-structure-01',
@@ -152,7 +181,16 @@ export const LANDING_ZONE: Region = {
     {
       id: 'exit-to-ancient-ruins',
       interactable: true,
-      position: { x: 18 * TILE_SIZE, y: 12 * TILE_SIZE },
+      // Dentro da alcova magnetica (linha 11, coluna 17 - interior e
+      // linhas10-11/colunas16-17, decoration-02 ocupa o canto 16,10), nao em
+      // piso aberto: e o gate proposital que exige Magnetic Boots (hazard em
+      // 10,15) antes do jogador poder sair da Landing Zone. +TILE_SIZE/2 nos
+      // dois eixos centraliza o icone na propria tile (em vez do canto),
+      // senao ele vaza visualmente para as paredes vizinhas da alcova.
+      position: {
+        x: 17 * TILE_SIZE + TILE_SIZE / 2,
+        y: 11 * TILE_SIZE + TILE_SIZE / 2,
+      },
       exit: {
         toRegionId: 'region-2',
         spawnPosition: { x: 2 * TILE_SIZE, y: 7 * TILE_SIZE },
@@ -192,19 +230,25 @@ function buildAncientRuinsTiles(): TileType[][] {
     tiles.push(line);
   }
 
-  // Nicho selado (Fase 7): uma unica celula (col12,row6), encostada na
-  // parede da borda, acessivel so pela entrada em 'sealed' (col11,row6) -
-  // que so deixa de bloquear quando ruins-puzzle-01 e resolvido.
+  // Nicho selado (Fase 7): duas celulas empilhadas (col12, linhas 6-7),
+  // encostadas na parede da borda, acessiveis so pela entrada em 'sealed'
+  // (col11,row6) - que so deixa de bloquear quando ruins-puzzle-01 e
+  // resolvido. Bug real corrigido: a versao original tinha so uma celula
+  // (row6) e exit-to-signal-core morava fora dela, em col11/row7 - uma tile
+  // aberta, sem parede nenhuma lacrando aquele lado, entao dava pra alcancar
+  // a porta para o Signal Core sem nunca cruzar o 'sealed' nem resolver o
+  // puzzle. Agora ruins-archive (row6) e exit-to-signal-core (row7) ficam os
+  // dois dentro do nicho, e col11/row7 vira parede para fechar esse lado.
   tiles[5][12] = 'wall';
-  tiles[7][12] = 'wall';
+  tiles[8][12] = 'wall';
   tiles[6][11] = 'sealed';
+  tiles[7][11] = 'wall';
 
   return tiles;
 }
 
 export const ANCIENT_RUINS: Region = {
   id: 'region-2',
-  name: 'Ancient Ruins',
   tileSize: RUINS_TILE_SIZE,
   tiles: buildAncientRuinsTiles(),
   objects: [
@@ -258,7 +302,15 @@ export const ANCIENT_RUINS: Region = {
     {
       id: 'exit-to-signal-core',
       interactable: true,
-      position: { x: 11 * RUINS_TILE_SIZE, y: 7 * RUINS_TILE_SIZE },
+      requiresPuzzleSolved: 'ruins-puzzle-01',
+      // Dentro do nicho selado (col12,row7 - ver buildAncientRuinsTiles),
+      // nao mais em piso aberto. +RUINS_TILE_SIZE/2 nos dois eixos centraliza
+      // o icone na propria tile, evitando o mesmo bug de clipping visual ja
+      // corrigido antes na porta da Landing Zone (ver docs/DECISIONS.md).
+      position: {
+        x: 12 * RUINS_TILE_SIZE + RUINS_TILE_SIZE / 2,
+        y: 7 * RUINS_TILE_SIZE + RUINS_TILE_SIZE / 2,
+      },
       exit: {
         toRegionId: 'region-3',
         spawnPosition: { x: 5 * SIGNAL_TILE_SIZE, y: 8 * SIGNAL_TILE_SIZE },
@@ -291,7 +343,6 @@ function buildSignalCoreTiles(): TileType[][] {
 
 export const SIGNAL_CORE: Region = {
   id: 'region-3',
-  name: 'Signal Core',
   tileSize: SIGNAL_TILE_SIZE,
   tiles: buildSignalCoreTiles(),
   objects: [
@@ -351,8 +402,13 @@ export const SIGNAL_CORE: Region = {
   ],
 };
 
-const CACHE_COLS = 8;
-const CACHE_ROWS = 8;
+// 10x10 (nao mais 8x8): o desenvolvedor achou a sala pequena demais para o
+// que ela conta na narrativa (o acampamento secreto de escavacao do Kade) -
+// interior passa de 6x6 para 8x8 tiles, dando espaco para o acampamento
+// (escoramento, lanterna, terra revolvida) sem apertar os switches/fragmentos
+// existentes.
+const CACHE_COLS = 10;
+const CACHE_ROWS = 10;
 
 function buildBuriedCacheTiles(): TileType[][] {
   const tiles: TileType[][] = [];
@@ -382,14 +438,13 @@ function buildBuriedCacheTiles(): TileType[][] {
 // Core. Ver docs/DECISIONS.md.
 export const BURIED_CACHE: Region = {
   id: 'region-4',
-  name: 'Buried Cache',
   tileSize: CACHE_TILE_SIZE,
   tiles: buildBuriedCacheTiles(),
   objects: [
     {
       id: 'exit-to-landing-zone-from-cache',
       interactable: true,
-      position: { x: 4 * CACHE_TILE_SIZE, y: 6 * CACHE_TILE_SIZE },
+      position: { x: 5 * CACHE_TILE_SIZE, y: 7 * CACHE_TILE_SIZE },
       exit: {
         toRegionId: 'region-1',
         spawnPosition: { x: 7 * TILE_SIZE, y: 13 * TILE_SIZE },
@@ -404,28 +459,52 @@ export const BURIED_CACHE: Region = {
     {
       id: 'buried-cache-switch-b',
       interactable: true,
-      position: { x: 5 * CACHE_TILE_SIZE, y: 2 * CACHE_TILE_SIZE },
+      position: { x: 7 * CACHE_TILE_SIZE, y: 2 * CACHE_TILE_SIZE },
       puzzleSwitch: { puzzleId: 'buried-cache-puzzle', switchId: 'switch-b' },
     },
     {
       id: 'buried-cache-switch-c',
       interactable: true,
-      position: { x: 4 * CACHE_TILE_SIZE, y: 4 * CACHE_TILE_SIZE },
+      position: { x: 5 * CACHE_TILE_SIZE, y: 4 * CACHE_TILE_SIZE },
       puzzleSwitch: { puzzleId: 'buried-cache-puzzle', switchId: 'switch-c' },
     },
     {
       id: 'fragment-pickup-07',
       interactable: true,
       requiresPuzzleSolved: 'buried-cache-puzzle',
-      position: { x: 1 * CACHE_TILE_SIZE, y: 5 * CACHE_TILE_SIZE },
+      position: { x: 1 * CACHE_TILE_SIZE, y: 6 * CACHE_TILE_SIZE },
       memoryFragment: 'fragment-07',
     },
     {
       id: 'fragment-pickup-08',
       interactable: true,
       requiresPuzzleSolved: 'buried-cache-puzzle',
-      position: { x: 6 * CACHE_TILE_SIZE, y: 5 * CACHE_TILE_SIZE },
+      position: { x: 8 * CACHE_TILE_SIZE, y: 6 * CACHE_TILE_SIZE },
       memoryFragment: 'fragment-08',
+    },
+    // Acampamento de escavacao do Kade (decoracao, ver fragment-07/08): o
+    // escoramento de madeira e a lanterna sugerem uma escavacao improvisada,
+    // as pressas; a terra revolvida fica encostada no fragmento-08, o ponto
+    // onde ele "enterrou o drive sob a crista leste".
+    {
+      id: 'cache-beam-01',
+      decorationKind: 'campBeam',
+      position: { x: 2 * CACHE_TILE_SIZE, y: 7 * CACHE_TILE_SIZE },
+    },
+    {
+      id: 'cache-beam-02',
+      decorationKind: 'campBeam',
+      position: { x: 7 * CACHE_TILE_SIZE, y: 7 * CACHE_TILE_SIZE },
+    },
+    {
+      id: 'cache-lantern-01',
+      decorationKind: 'campLantern',
+      position: { x: 5 * CACHE_TILE_SIZE, y: 3 * CACHE_TILE_SIZE },
+    },
+    {
+      id: 'cache-dug-earth-01',
+      decorationKind: 'dugEarth',
+      position: { x: 7 * CACHE_TILE_SIZE, y: 6 * CACHE_TILE_SIZE },
     },
   ],
 };
@@ -464,37 +543,41 @@ function buildThousandSpiresTiles(): TileType[][] {
 // interactable + requiresDeepScanner + exit, tudo no mesmo objeto.
 export const THOUSAND_SPIRES: Region = {
   id: 'region-5',
-  name: 'Thousand Spires',
   tileSize: SPIRES_TILE_SIZE,
   tiles: buildThousandSpiresTiles(),
   objects: [
     {
       id: 'spire-node-1',
       interactable: true,
+      visualKind: 'spire',
       position: { x: 8 * SPIRES_TILE_SIZE, y: 2 * SPIRES_TILE_SIZE },
       puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-1' },
     },
     {
       id: 'spire-node-2',
       interactable: true,
+      visualKind: 'spire',
       position: { x: 13 * SPIRES_TILE_SIZE, y: 5 * SPIRES_TILE_SIZE },
       puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-2' },
     },
     {
       id: 'spire-node-3',
       interactable: true,
+      visualKind: 'spire',
       position: { x: 11 * SPIRES_TILE_SIZE, y: 9 * SPIRES_TILE_SIZE },
       puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-3' },
     },
     {
       id: 'spire-node-4',
       interactable: true,
+      visualKind: 'spire',
       position: { x: 5 * SPIRES_TILE_SIZE, y: 9 * SPIRES_TILE_SIZE },
       puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-4' },
     },
     {
       id: 'spire-node-5',
       interactable: true,
+      visualKind: 'spire',
       position: { x: 3 * SPIRES_TILE_SIZE, y: 5 * SPIRES_TILE_SIZE },
       puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-5' },
     },
@@ -509,6 +592,30 @@ export const THOUSAND_SPIRES: Region = {
       interactable: true,
       position: { x: 13 * SPIRES_TILE_SIZE, y: 9 * SPIRES_TILE_SIZE },
       memoryFragment: 'fragment-10',
+    },
+    // Torres caidas (decoracao, sem nenhuma flag de comportamento) - o campo
+    // se chama "Thousand Spires", mas so 5 torres ainda respondem (os
+    // puzzleSwitch acima); estas reforcam que o campo continua muito alem
+    // das 5 que importam para o puzzle, a maioria delas ja em ruina.
+    {
+      id: 'broken-spire-01',
+      decorationKind: 'brokenSpire',
+      position: { x: 2 * SPIRES_TILE_SIZE, y: 2 * SPIRES_TILE_SIZE },
+    },
+    {
+      id: 'broken-spire-02',
+      decorationKind: 'brokenSpire',
+      position: { x: 14 * SPIRES_TILE_SIZE, y: 3 * SPIRES_TILE_SIZE },
+    },
+    {
+      id: 'broken-spire-03',
+      decorationKind: 'brokenSpire',
+      position: { x: 6 * SPIRES_TILE_SIZE, y: 4 * SPIRES_TILE_SIZE },
+    },
+    {
+      id: 'broken-spire-04',
+      decorationKind: 'brokenSpire',
+      position: { x: 12 * SPIRES_TILE_SIZE, y: 7 * SPIRES_TILE_SIZE },
     },
     {
       // requiresPuzzleSolved (alem do requiresDeepScanner) e o proposito: a
@@ -579,7 +686,6 @@ function buildBuriedChordTiles(): TileType[][] {
 // Thousand Spires - esse ja precisou ser resolvido so pra entrar aqui).
 export const BURIED_CHORD: Region = {
   id: 'region-6',
-  name: 'The Buried Chord',
   tileSize: CHORD_TILE_SIZE,
   tiles: buildBuriedChordTiles(),
   objects: [

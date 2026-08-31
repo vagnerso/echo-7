@@ -2,6 +2,16 @@ import type { MemoryFragment } from '@/entities/memoryFragment';
 
 // Texto narrativo vem de t.fragments[id] (src/i18n).
 export const MEMORY_FRAGMENTS: readonly MemoryFragment[] = [
+  // console-01 (Landing Zone): log automatico do console da base, nao um
+  // registro pessoal como os demais - por isso "Log 01", anterior ao
+  // "Log 03 - Chegada" do fragment-01. Da proposito de lore ao console, que
+  // ate aqui so alternava de cor ao interagir sem nenhum efeito (bug de
+  // conteudo esquecido, achado pelo desenvolvedor - ver docs/DECISIONS.md).
+  {
+    id: 'fragment-13',
+    regionId: 'region-1',
+    corruption: 15,
+  },
   {
     id: 'fragment-01',
     regionId: 'region-1',

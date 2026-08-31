@@ -1145,3 +1145,108 @@ Depois de jogar até o fim, dois pedidos concretos antes do commit: (1) The Buri
 **Motivo:** pedido explícito do desenvolvedor por um tom mais caloroso - a mudança de texto (não de estrutura) foi suficiente pra atender o pedido sem alterar o resto da tela (mesmas 4 linhas narrativas anteriores, mesmo botão único de "voltar ao menu").
 
 **Screenshots novos:** `docs/screenshots/epilogue-complete.png` adicionado ao README, mostrando a tela nova.
+
+## Bug encontrado pelo desenvolvedor: saída da Landing Zone acessível sem cruzar a alcova magnética
+
+O desenvolvedor reportou que a porta `exit-to-ancient-ruins` (Landing Zone) parecia "mal localizada" - o ícone da porta ficava visualmente meio dentro da parede da alcova magnética vizinha. As duas primeiras tentativas de correção trataram isso como bug puramente visual (reposicionar a porta em outro canto de tile, depois centralizar o ícone na própria tile) - ambas resolviam o clipping visual, mas erravam o diagnóstico: a porta continuava em piso aberto, fora da alcova, então o Echo conseguia sair direto para a Ancient Ruins sem nunca cruzar o hazard vermelho nem instalar Magnetic Boots. O desenvolvedor confirmou que o comportamento pretendido era o oposto: a saída da Landing Zone **deveria** exigir Magnetic Boots.
+
+**Decisão:** mover `exit-to-ancient-ruins` para dentro do interior 2x2 da alcova magnética (linha 11, coluna 17 - `decoration-02` ocupa o canto oposto, linha 10/coluna 16), a mesma área hoje só alcançável pelo hazard em (linha 10, coluna 15). A alcova, que só servia como "prova de progresso" opcional (Fase 6), passa a também gatear a progressão principal da Landing Zone.
+
+**Por que isso não trava o jogo:** os dois upgrades (Deep Scanner e Magnetic Boots) exigem só 1 `ancient-component` cada (`content/upgrades.ts`) e `installUpgrade` (gameStore) não consome o item do inventário ao instalar - então basta coletar 1 dos 2 `ancient-component` já disponíveis em piso aberto na própria Landing Zone (`ancient-component-pickup-01`/`02`) para instalar Magnetic Boots e atravessar o hazard.
+
+**Motivo de não ter sido pego nas duas primeiras tentativas:** o diagnóstico inicial só olhou a geometria de renderização (o ícone vazando pra fora do tile), sem checar se a posição fazia sentido em relação ao "gate" pretendido pelo hazard - um lembrete de que corrigir o sintoma (clipping visual) não corrige a causa quando a causa é uma decisão de design, não um cálculo de pixel.
+
+## Bug do mesmo tipo, encontrado em seguida: cadeado do nicho da Ancient Ruins não protegia nada
+
+Mesma categoria do bug anterior, achada pelo desenvolvedor ao revisar a tela seguinte: o nicho selado da Ancient Ruins (Fase 7) tinha só uma célula (col12, linha6), e `exit-to-signal-core` morava em col11/linha7 - uma tile aberta, sem parede nenhuma lacrando aquele lado. Dava pra andar até a porta do Signal Core direto, sem nunca cruzar o tile `sealed` nem resolver `ruins-puzzle-01`, o que também contradizia a própria lógica do jogo: resolver esse puzzle já trocava o objetivo para "encontre o caminho para o Signal Core" (`GameCanvas.tsx`), implicando que o caminho não deveria estar disponível antes disso.
+
+**Decisão:** nicho ganhou uma segunda célula empilhada (col12, linha7), com `exit-to-signal-core` movido para dentro dela (e `requiresPuzzleSolved: 'ruins-puzzle-01'` adicionado ao objeto, mesmo padrão redundante de proteção já usado em `ruins-archive`/`buried-chord-entrance` - o gate físico impede o acesso, o campo no objeto é defesa em profundidade e também aciona o dimming visual de "trancado"). A parede sul do nicho moveu de linha7 para linha8, e col11/linha7 virou parede para fechar o lado que antes ficava aberto.
+
+**Motivo de já ter aprendido a lição:** a nova posição da porta usa `+RUINS_TILE_SIZE/2` nos dois eixos (centralizada na própria tile), em vez do canto cru - evitando de cara o mesmo bug de clipping visual das correções anteriores, sem precisar de uma segunda rodada de ajuste.
+
+## Pedido do desenvolvedor: Signal Core "muito simples"
+
+Depois das correções de gating, o desenvolvedor achou a sala do Signal Core visualmente pobre - piso com grade técnica e os 4 nós do puzzle soltos no vazio, sem nenhuma relação visual entre eles e o núcleo que ativam.
+
+**Decisão:** `GroundPalette` ganhou um campo opcional `energyConduits` (só `true` para `region-3` hoje). Quando ativo, `createGroundTexture` chama `drawSignalCoreDiagram`, que desenha conduítes (linha + tracinhos perpendiculares, como trilha de circuito) de cada objeto com `puzzleSwitch` até o objeto com `triggersEnding`, mais três anéis concêntricos de "reator" sob o núcleo.
+
+**Por que generalizar por capacidade do objeto (`puzzleSwitch`/`triggersEnding`), não por `region.id`:** evita acoplar `GameCanvas.tsx` a um id específico de `content/regions.ts` - se uma região futura tiver o mesmo formato (N switches alimentando um objetivo central), só precisa marcar `energyConduits: true` na própria paleta, sem tocar na função de desenho.
+
+**Por que isso e não paredes internas na sala:** mudar `buildSignalCoreTiles` (colisão) arriscaria travar o puzzle ou o caminho até o núcleo, para um pedido que era só estético. Desenhar o diagrama na textura de chão (canvas offscreen pré-renderizado, gerado uma vez) é puramente visual, zero risco de colisão/softlock, e reaproveita a mesma técnica de textura procedural por região já usada desde o polish visual pós-release.
+
+**Verificação:** Playwright com um save forjado (`currentRegionId: 'region-3'`, `ruins-puzzle-01` resolvido) carregado direto no `localStorage`, screenshot da sala - conduítes e anéis renderizando corretamente, zero erros de console. Os 129 testes (nenhum cobre renderização de canvas) e o typecheck continuam passando sem alteração.
+
+## Pedido do desenvolvedor: destroços de nave na Landing Zone
+
+Na mesma linha do pedido do Signal Core, o desenvolvedor achou a Landing Zone com poucos detalhes e pediu "pedacinhos de uma nave" - o que já constava no `PROMPT MESTRE` (seção Mundo, Região 1: "cápsula/nave") desde o design original, mas nunca tinha ganhado um objeto ou visual próprio - as únicas decorações existentes (`decoration-01`/`02`) já eram os agrupamentos de pedra genéricos usados em toda a Landing Zone/Ancient Ruins.
+
+**Decisão:** `WorldObject` ganhou um campo opcional `decorationKind?: 'wreckage'` (`world/region.ts`) - default (`undefined`) continua sendo o agrupamento de pedras de sempre, sem mudar nenhum objeto existente. Três objetos novos (`wreckage-01/02/03`, sem nenhuma flag de comportamento, só decorativos) foram colocados perto do `INITIAL_SPAWN` da Landing Zone, como se a cápsula tivesse se partido no impacto. `renderDecorations` (`GameCanvas.tsx`) ramifica por esse campo para `renderWreckageDecoration` - placas de casco irregulares (quadrilátero, não retângulo, para parecer metal amassado), com rebites e uma marca de queimado, cor metálica fria em vez da paleta de pedra/terreno.
+
+**Por que um campo novo em vez de inferir pelo prefixo do id (`wreckage-*`):** o resto do arquivo já usa esse padrão (flags tipadas, nunca convenção de string solta no id) - `object.decorationKind === 'wreckage'` é checado pelo TypeScript, uma string mal digitada em `regions.ts` não seria.
+
+**Verificação:** Playwright, jogo novo (Landing Zone, sem save), screenshot perto do spawn - os três destroços renderizam como fragmentos metálicos angulares, visualmente distintos das pedras e dos demais ícones (fragmento, scannable), zero erros de console. 129 testes e typecheck sem alteração.
+
+## Pedido do desenvolvedor: Buried Cache pequena e vazia
+
+Terceiro pedido de polish visual na mesma sessão: a sala da Buried Cache (region-4, o acampamento secreto de escavação do Kade - ver fragment-07/08) pareceu pequena e vazia, e o desenvolvedor pediu para aumentá-la e detalhá-la.
+
+**Decisão:** `CACHE_COLS`/`CACHE_ROWS` foram de 8x8 para 10x10 (interior de 6x6 para 8x8 tiles) - os 3 switches, a saída e os 2 fragmentos foram redistribuídos nesse espaço maior (posições não fazem parte do save, só flags/ids - realocar é seguro). `decorationKind` (já criado para o `wreckage` da Landing Zone) ganhou três novas variantes específicas do acampamento: `campBeam` (escoramento de madeira tipo mina, escoramento improvisado), `campLantern` (lanterna pendurada com brilho âmbar via `createRadialGradient`, ecoando o `accentColor` já usado no piso desta região) e `dugEarth` (mancha de terra revolvida com grumos, sem brilho nem contorno chamativo - decoração ambiental sutil, não um marcador de atenção). A `dugEarth` foi colocada colada em `fragment-pickup-08`, o fragmento que descreve exatamente o local onde Kade "enterrou o drive sob a crista leste".
+
+**Por que variantes novas em vez de reaproveitar `wreckage`:** metal de nave e madeira de escoramento de mina são materiais/leituras visuais incompatíveis - forçar o mesmo desenho pelos dois contextos quebraria a identidade visual que `wreckage` já tem para a Landing Zone.
+
+**Verificação:** Playwright com um save forjado (`currentRegionId: 'region-4'`), screenshot da sala cheia e um recorte ampliado da lanterna/terra revolvida - todos os elementos legíveis e distintos entre si, zero erros de console. 129 testes e typecheck sem alteração (nenhum objeto ganhou flag de comportamento, só posição/decoração).
+
+## Pedido do desenvolvedor: Thousand Spires "poderia ser mais quente" - tensão com decisão já documentada
+
+Quarto pedido de polish visual na sessão, mas com uma diferença: o desenvolvedor pediu para a cena ficar "mais de cores quentes", e isso conflita direto com uma decisão já registrada acima (v3.0 — Fase B: "Thousand Spires: campo frio e quase monocromático... contraste deliberado com as outras paletas... o acento quente é escasso de propósito: 'ainda há uma nota acesa aqui'"). Como Tech Lead, sinalizei a tensão antes de mexer em vez de simplesmente aplicar o pedido literal ou ignorá-lo silenciosamente - perguntei se o desenvolvedor queria (a) manter frio e só adicionar detalhe, (b) trocar para quente de vez, ou (c) um híbrido (campo frio + um foco quente forte). Escolha: (a) - manter o contraste frio deliberado, resolvendo a queixa real ("parece pouco detalhado") sem desfazer a decisão de paleta.
+
+**Decisão:** os 5 `puzzleSwitch` das torres (`spire-node-1..5`) ganharam `visualKind: 'spire'` (`world/region.ts`) - `renderInteractables` passa a desenhar, antes do orbe de sempre, uma silhueta de torre afunilada com dois anéis (`renderSpireTower`), tudo em tons frios de pedra/metal (mesma família do `speckleColors`/`crackColor` já usados no piso da região) - o orbe do switch vira literalmente a "ponta" da torre, em vez de flutuar sozinho sobre o campo vazio. Quatro `broken-spire-0X` novos (decoration, `decorationKind: 'brokenSpire'`) - tocos quebrados com rubble na base, sem nenhum brilho - preenchem o resto do campo, reforçando que "mil torres" é bem maior que as 5 que ainda funcionam.
+
+**Por que não usei `THOUSAND_SPIRES_PUZZLE_ID` para decidir o visual:** já existe esse padrão em outro lugar do arquivo (`SEALED_TILE_PUZZLE_ID` gateando o desenho do tile `sealed`), mas aqui um campo explícito (`visualKind`) é mais direto de auditar - fica óbvio em `content/regions.ts` quais objetos são torres sem precisar ir consultar qual id de puzzle está em jogo.
+
+**Verificação:** Playwright com um save forjado (`currentRegionId: 'region-5'`), screenshot do campo - as 5 torres com o orbe no topo e ao menos uma torre quebrada visíveis simultaneamente, tudo ainda dentro da paleta fria (nenhuma cor quente nova), zero erros de console. 129 testes e typecheck sem alteração.
+
+## Pedido do desenvolvedor: tela de final do MVP (EndingScreen) "melhorar"
+
+Quinto pedido de polish visual da sessão. Diferente das outras telas, a `EndingScreen` (final do MVP - `signal-core` com `triggersEnding`) nunca tinha recebido nenhum tratamento visual: texto solto sobre fundo preto chapado, sem os cantos cortados/scanline/glow que o resto da interface (Scanner, Objetivo, Comandos) já usa via `hudPanel.module.css`.
+
+**Decisão:** `.block` em `EndingScreen.module.css` passou a `composes: panel from '@/styles/hudPanel.module.css'` (mesmo painel "computador de bordo" do resto da HUD), com uma variante `.hookBlock` para o segundo bloco (o gancho do "novo sinal") usando o acento roxo do próprio `hookTitle` em vez do ciano padrão do painel - diferencia visualmente "resposta do núcleo" de "revelação nova". `EndingScreen.tsx` ganhou o `EchoPortrait` no topo (mesmo componente já usado no `MainMenu`/`EpilogueCompleteScreen`) - a tela era a única das três que fecham o jogo sem mostrar o robô, apesar do texto ser literalmente sobre o núcleo reconhecer o ECHO-7 ("bem-vindo, parente"). O fundo trocou de `#0b0d12` chapado para um radial sutil (mesma ideia de profundidade do céu procedural do `GameCanvas`). Os filhos diretos de `.screen` ganharam uma entrada em fade escalonada (`.screen > *:nth-child(N)`), lendo como uma mensagem sendo decodificada em sequência.
+
+**Por que via `.screen > *` e não uma classe por elemento:** `EndingScreen.module.css` é compartilhado com `EpilogueCompleteScreen` (ver decisão do epílogo, v3.0) - todas essas mudanças (painel, radial, fade escalonado) valem para as duas telas de uma vez, sem duplicar CSS nem exigir mudança na outra tela.
+
+**Verificação:** Playwright com dois saves forjados (`hasReachedEnding` fora de region-5/6 → EndingScreen; `hasCompletedEpilogue` dentro de region-6 → EpilogueCompleteScreen) - screenshots das duas telas confirmando painel, retrato e fade aplicados corretamente nas duas, zero erros de console. 129 testes e typecheck sem alteração (mudança 100% visual).
+
+## Bug real encontrado pelo desenvolvedor: robô cortado na EndingScreen
+
+Ao testar a melhoria anterior, o desenvolvedor reportou o robô cortado no topo da tela, achando que o texto estava grande demais. O diagnóstico revelou dois problemas empilhados, não um só:
+
+1. **Bug real de CSS:** `.screen` usava `justify-content: center` num flex column com `overflow-y: auto`. Quando o conteúdo é mais alto que a viewport, `justify-content: center` empurra o início do conteúdo pra cima da área visível, mas o navegador não permite `scrollTop` negativo - o resultado é que a parte de cima (o retrato) fica permanentemente inacessível, mesmo com scroll habilitado. Isso é uma pegadinha conhecida de flexbox, não algo que "mais espaço" resolvesse sozinho.
+2. **Conteúdo genuinamente grande demais:** dois painéis de 4 linhas + retrato + título + 2 botões, com o espaçamento generoso adicionado na melhoria anterior, ultrapassava a altura de viewports comuns (confirmado: overflow em janelas de até ~816px de altura).
+
+**Decisão:** troquei `justify-content: center` por dois pseudo-elementos (`.screen::before`/`::after`) com `margin: auto 0` - a técnica padrão que centraliza quando cabe mas encolhe até 0 (em vez de recortar) quando não cabe, permitindo rolagem normal a partir do topo se algum dia ainda faltar espaço. Além disso, reduzi o espaçamento geral (gap, padding dos painéis, margens de título/linha/botão) e adicionei `font-size: 0.92rem` no `.screen`. `EchoPortrait` ganhou um `className` opcional e sua largura/altura passaram a usar `calc(140px * var(--scale, 1))` (var com fallback, não competindo com nenhuma outra regra na mesma especificidade) - só a `EndingScreen` usa uma classe `.compactPortrait { --scale: 0.65 }`; o `MainMenu` e a `EpilogueCompleteScreen` continuam com o retrato no tamanho original, sem essa pressão de espaço.
+
+**Por que resolver os dois problemas, não só o segundo:** só reduzir o tamanho teria escondido o bug de centralização sem corrigi-lo - bastaria a tela crescer de novo no futuro (mais uma linha de texto, uma tradução mais longa) para o robô voltar a cortar, sem nenhum aviso.
+
+**Verificação:** Playwright em duas resoluções (1912x861, a relatada pelo desenvolvedor, e um teste de estresse a 1280x650) - em ambas o conteúdo agora cabe inteiro sem cortar nada e sem precisar rolar (`scrollHeight === clientHeight` nas duas), retrato incluído. `EpilogueCompleteScreen` reverificada (usa as mesmas classes de espaçamento, mas não `compactPortrait`) - continua com boa folga. Zero erros de console. 129 testes e typecheck sem alteração.
+
+## Bug de conteúdo esquecido encontrado pelo desenvolvedor: console-01 sem propósito
+
+O desenvolvedor reparou que `console-01` (Landing Zone) só alternava de cor (âmbar ⇄ verde) ao interagir, sem nenhum efeito - o fallback genérico de `interactionSystem`/`GameCanvas.tsx` para qualquer `interactable` sem `collectible`/`exit`/`puzzleSwitch`/`memoryFragment`/`triggersEnding`. Não tinha nenhum texto associado em nenhum dos dois idiomas - quase certamente sobrou da Fase 3 (quando o sistema de interação foi criado, antes de qualquer mecânica de conteúdo existir) e nunca foi preenchido depois.
+
+**Decisão:** em vez de inventar um mecanismo novo de "texto ao interagir", reaproveitei o sistema de Memory Fragments já existente (Fase 8) - `console-01` ganhou `memoryFragment: 'fragment-13'`. Narrativamente faz sentido: o próprio `PROMPT MESTRE` já previa uma "pequena base" na Landing Zone (Região 1) que nunca tinha sido representada; o console é essa base, e reproduzir um log ao ser ativado é uma leitura natural para um terminal, mais até do que um pickup flutuante genérico. O log (`fragment-13`, "Log 01 (sistema automático)") é deliberadamente um registro técnico automático, não a voz de um narrador em primeira pessoa como os outros fragmentos - diferencia o console dos diários pessoais da expedição, e cronologicamente antecede o "Log 03 - Chegada" (fragment-01), que já ocupa a Landing Zone.
+
+**Por que reaproveitar Memory Fragments, não criar um sistema de flavor text novo:** o objeto já ficava fisicamente perto de dois outros fragment-pickups em Landing Zone - adicionar um terceiro mecanismo diferente só para este objeto criaria inconsistência sem necessidade. `MEMORY_FRAGMENTS`/`InventoryPanel` já são genéricos (`MEMORY_FRAGMENTS.length`, sem contagem fixa) - o 13º fragmento não exigiu nenhuma mudança em código, só dado novo.
+
+**Efeito colateral (esperado) na renderização:** `console-01` passa a desenhar como o triângulo padrão de fragmento (`renderInteractables`, branch de `memoryFragment` vem antes do fallback genérico), não mais como o círculo âmbar/verde - consistente com todo outro objeto que carrega um fragmento no jogo.
+
+**Verificação:** Playwright, jogo novo, movimento até a posição do console e tecla E - overlay "MEMORY FRAGMENT" aparece com o texto certo ("Log 01 (automated system)...", 15% de corrupção) e o objeto some do mundo, mesmo comportamento de qualquer outro fragment-pickup. Zero erros de console. 129 testes e typecheck sem alteração.
+
+## Pedido do desenvolvedor: mostrar o nome da região atual no HUD
+
+Pedido simples ("mostrar em algum cantinho discreto da tela"), mas a investigação revelou que `Region.name` (campo já existente em `content/regions.ts` desde a Fase 3) nunca foi usado em lugar nenhum do código - só existia como dado morto, sempre em inglês, direto no conteúdo. Usá-lo como estava violaria a convenção já documentada acima ("Internacionalização... Conteúdo passa a guardar só identidade, nunca texto de exibição"): o nome apareceria em inglês mesmo com o jogo em português.
+
+**Decisão:** removido `Region.name` do tipo e das 6 definições de região (dado morto, nenhuma referência restante fora dos próprios arquivos de teste, que também foram ajustados). Novo dicionário `t.regionNames` (`Record<string, string>`, mesmo padrão de `fragments`/`scanInfo`), indexado por `Region.id`, nos dois idiomas. `MissionHUD` (painel "OBJETIVO", canto superior direito) ganhou uma linha discreta com o nome da região acima do label de objetivo - menor, mais apagada, sem um rótulo tipo "LOCALIZAÇÃO:" na frente (a posição e o estilo já bastam pra ler como nome de lugar). Reaproveitei o painel existente em vez de criar um novo canto de HUD, porque tanto o canto inferior-esquerdo quanto o inferior-direito já são ocupados por `TouchControls` no mobile (D-pad e botões de ação) - um painel novo colidiria em telas de toque.
+
+**Nomes que ficaram em inglês mesmo na tradução pt-BR:** "Buried Cache" e "Buried Chord" (regiões 4 e 6) - as outras 4 regiões já tinham nome em português estabelecido pelo próprio texto de objetivos (`t.objectives`); essas duas nunca tiveram, e o único precedente existente no jogo (`fragment-11`: "O Buried Chord fica em silêncio...") já usa o nome próprio sem traduzir. Mantive a mesma escolha em vez de inventar uma tradução nova sem consultar o desenvolvedor.
+
+**Verificação:** Playwright nos dois idiomas (pt-BR: Landing Zone/Ancient Ruins; en: The Buried Chord) - nome da região aparece correto e no idioma certo, discreto acima do objetivo. 129 testes e typecheck passando (2 arquivos de teste ajustados para não construir mais `Region` com `name`).

@@ -47,9 +47,8 @@ export const en: Translations = {
     origin: 'ORIGIN: BEYOND CHARTED SPACE',
     newCoordinate: "A new coordinate has been logged to ECHO-7's core memory.",
     searchContinues: 'The search continues...',
-    toBeContinued: 'TO BE CONTINUED',
     returnToMenu: 'RETURN TO MENU',
-    continueExploring: 'CONTINUE EXPLORING',
+    continueExploring: 'UNCOVER THE MYSTERY',
   },
   epilogueEnding: {
     sequenceComplete: 'SEQUENCE COMPLETE — ALL FIVE TONES MATCHED',
@@ -97,6 +96,14 @@ export const en: Translations = {
     approachCore: 'Approach the Core.',
     exploreThousandSpires: 'Explore the Thousand Spires.',
   },
+  regionNames: {
+    'region-1': 'Landing Zone',
+    'region-2': 'Ancient Ruins',
+    'region-3': 'Signal Core',
+    'region-4': 'Buried Cache',
+    'region-5': 'Thousand Spires',
+    'region-6': 'The Buried Chord',
+  },
   items: {
     'energy-cell': 'Energy Cell',
     'ancient-component': 'Ancient Component',
@@ -133,6 +140,8 @@ export const en: Translations = {
     },
   },
   fragments: {
+    'fragment-13':
+      'Log 01 (automated system) - Touchdown confirmed. Hull integrity: 94%. No atmospheric anomalies detected. Crew cleared for disembarkation. Preliminary survey begins in T-minus 6 hours.',
     'fragment-01':
       'Log 03 - Arrival. Atmosphere reads clean. No signs of hostile life. The signal is still there, exactly where the survey said it would be. Command wants daily reports. This place feels... watched.',
     'fragment-02':

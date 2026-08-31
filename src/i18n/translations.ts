@@ -81,7 +81,6 @@ export interface Translations {
     origin: string;
     newCoordinate: string;
     searchContinues: string;
-    toBeContinued: string;
     returnToMenu: string;
     continueExploring: string;
   };
@@ -115,6 +114,8 @@ export interface Translations {
     controlsTitle: string;
   };
   objectives: Record<ObjectiveKey, string>;
+  /** Nome de exibicao de uma regiao, indexado por Region.id (content/regions.ts). */
+  regionNames: Record<string, string>;
   /** Nome de exibicao de um item/componente, indexado por InventoryItem.id. */
   items: Record<string, string>;
   /** Indexado por Upgrade.id. */

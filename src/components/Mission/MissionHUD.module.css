@@ -21,6 +21,19 @@
   }
 }
 
+/* Nome da regiao atual - discreto de proposito (pedido do desenvolvedor):
+   menor e mais apagado que o proprio label "OBJETIVO", para ficar claro que
+   e contexto secundario (onde o jogador esta), nao o foco do painel (o que
+   fazer). Sem rotulo tipo "LOCALIZACAO:" na frente - a posicao (topo do
+   mesmo painel) e o estilo ja bastam para ler como nome de lugar. */
+.location {
+  margin: 0 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  opacity: 0.55;
+  text-transform: uppercase;
+}
+
 .label {
   composes: title from '@/styles/hudPanel.module.css';
   font-size: 11px;

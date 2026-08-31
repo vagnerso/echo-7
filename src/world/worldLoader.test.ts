@@ -11,7 +11,6 @@ import {
 function fixtureRegion(): Region {
   return {
     id: 'test-region',
-    name: 'Test Region',
     tileSize: 10,
     tiles: [
       ['wall', 'wall', 'wall'],
@@ -43,7 +42,6 @@ describe('getRegionObstacles', () => {
   it('retorna lista vazia para uma regiao sem paredes', () => {
     const region: Region = {
       id: 'empty',
-      name: 'Empty',
       tileSize: 10,
       tiles: [['floor', 'floor']],
       objects: [],
@@ -57,7 +55,6 @@ describe('getHazardTiles', () => {
   it('gera um AABB para cada tile de hazard, ignorando parede e floor', () => {
     const region: Region = {
       id: 'test-region',
-      name: 'Test Region',
       tileSize: 10,
       tiles: [
         ['wall', 'hazard', 'floor'],
@@ -78,7 +75,6 @@ describe('getSealedTiles', () => {
   it('gera um AABB para cada tile sealed', () => {
     const region: Region = {
       id: 'test-region',
-      name: 'Test Region',
       tileSize: 10,
       tiles: [['sealed', 'floor']],
       objects: [],
@@ -98,7 +94,6 @@ describe('getRegionSize', () => {
   it('retorna tamanho zero para uma regiao sem tiles', () => {
     const region: Region = {
       id: 'empty',
-      name: 'Empty',
       tileSize: 10,
       tiles: [],
       objects: [],

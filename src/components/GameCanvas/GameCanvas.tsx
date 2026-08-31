@@ -152,8 +152,44 @@ const OBJECT_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.75)';
 
 const HAZARD_STRIPE_COLOR = 'rgba(230, 120, 90, 0.5)';
 const SEALED_LOCK_COLOR = 'rgba(210, 170, 255, 0.9)';
+// Mesmo verde de "ativado" ja usado em INTERACTABLE_ACTIVATED_COLOR (switch
+// pressionado) - reaproveita a linguagem visual que o jogo ja tem para
+// "isso mudou de estado", em vez de introduzir uma terceira cor de status.
+const UNSEALED_COLOR = 'rgba(94, 230, 140, 0.18)';
+const UNSEALED_BORDER_COLOR = 'rgba(94, 230, 140, 0.6)';
+const UNSEALED_LOCK_COLOR = 'rgba(94, 230, 140, 0.9)';
 const WALL_BEVEL_LIGHT = 'rgba(164, 245, 226, 0.25)';
 const WALL_BEVEL_DARK = 'rgba(5, 6, 10, 0.35)';
+// Mesmo tom ciano do accentColor do Signal Core (REGION_GROUND_PALETTES),
+// so que mais saturado - o diagrama de energia precisa se destacar do piso,
+// nao se misturar a ele como os outros acentos ambiente.
+const CORE_CONDUIT_COLOR = 'rgba(94, 230, 200, 0.4)';
+const CORE_RING_COLOR = 'rgba(94, 230, 200, 0.3)';
+const WRECKAGE_PANEL_COLOR = 'rgba(70, 75, 85, 0.65)';
+const WRECKAGE_EDGE_COLOR = 'rgba(160, 170, 185, 0.5)';
+const WRECKAGE_RIVET_COLOR = 'rgba(210, 215, 225, 0.55)';
+const WRECKAGE_SCORCH_COLOR = 'rgba(35, 25, 25, 0.4)';
+// Acampamento de escavacao da Buried Cache (Kade) - madeira escura e
+// lanterna ambar quente, ecoando o accentColor ja usado no piso da regiao
+// (REGION_GROUND_PALETTES['region-4']).
+const CAMP_WOOD_COLOR = 'rgba(90, 65, 45, 0.7)';
+const CAMP_WOOD_EDGE_COLOR = 'rgba(130, 95, 65, 0.6)';
+const CAMP_WOOD_GRAIN_COLOR = 'rgba(160, 125, 90, 0.35)';
+const CAMP_LANTERN_GLOW_COLOR = 'rgba(230, 180, 90, 0.55)';
+const CAMP_LANTERN_BODY_COLOR = 'rgba(60, 50, 40, 0.85)';
+const CAMP_LANTERN_LIGHT_COLOR = 'rgba(255, 210, 140, 0.95)';
+const DUG_EARTH_COLOR = 'rgba(80, 60, 45, 0.5)';
+const DUG_EARTH_CLUMP_COLOR = 'rgba(110, 85, 60, 0.5)';
+// Thousand Spires - pedra/metal antigo frio, mesma familia de tom do
+// speckleColors/crackColor da paleta da regiao (REGION_GROUND_PALETTES),
+// deliberadamente sem nenhum acento quente (ver docs/DECISIONS.md: o campo
+// frio e quase monocromatico e proposital).
+const SPIRE_SHAFT_COLOR = 'rgba(130, 140, 165, 0.55)';
+const SPIRE_EDGE_COLOR = 'rgba(190, 200, 220, 0.5)';
+const SPIRE_RING_COLOR = 'rgba(170, 180, 205, 0.4)';
+const BROKEN_SPIRE_COLOR = 'rgba(90, 98, 118, 0.5)';
+const BROKEN_SPIRE_EDGE_COLOR = 'rgba(140, 150, 175, 0.4)';
+const BROKEN_SPIRE_RUBBLE_COLOR = 'rgba(110, 118, 138, 0.45)';
 
 /** Preenchimento visivel so fora dos limites do mundo (camera perto das bordas). */
 const VOID_COLOR = '#05060a';
@@ -166,6 +202,13 @@ interface GroundPalette {
   accentColor: string;
   /** Se definido, desenha uma grade tecnologica em vez de rachaduras organicas (piso de instalacao). */
   gridSpacing?: number;
+  /**
+   * Se true, desenha o diagrama de energia do nucleo (conduites ligando os
+   * nos do puzzle ao objeto com triggersEnding, mais aneis de reator sob
+   * ele) - ver drawSignalCoreDiagram. So faz sentido numa sala com esse
+   * layout (hoje so o Signal Core).
+   */
+  energyConduits?: boolean;
 }
 
 // Uma paleta por regiao, para que cada uma pareca um lugar distinto do mesmo
@@ -201,6 +244,7 @@ const REGION_GROUND_PALETTES: Record<string, GroundPalette> = {
     crackColor: 'rgba(60, 100, 130, 0.2)',
     accentColor: 'rgba(94, 230, 200, 0.2)',
     gridSpacing: 64,
+    energyConduits: true,
   },
   'region-4': {
     // Buried Cache: deposito subterraneo humano - terra/madeira escura, sem
@@ -242,6 +286,69 @@ const REGION_GROUND_PALETTES: Record<string, GroundPalette> = {
 const DEFAULT_GROUND_PALETTE: GroundPalette = REGION_GROUND_PALETTES[
   'region-1'
 ]!;
+
+/**
+ * Diagrama de energia do Signal Core: conduites ligando cada no do puzzle
+ * (puzzleSwitch) ao objeto que dispara o final (triggersEnding), mais aneis
+ * de reator concentricos sob ele. A sala nascia so com grade + pontos de
+ * ambiente, do mesmo jeito generico das outras regioes, e por isso parecia
+ * "vazia" para uma sala que e literalmente o clímax do MVP - o diagrama
+ * comunica visualmente a propria mecanica da sala (os 4 switches alimentam
+ * o nucleo central), em vez de decoracao desconectada do que a sala faz.
+ * Generico por capacidade do objeto (nao por region.id) para nao acoplar
+ * este arquivo a um id especifico de content/regions.ts.
+ */
+function drawSignalCoreDiagram(
+  ctx: CanvasRenderingContext2D,
+  region: Region,
+): void {
+  const core = region.objects.find((object) => object.triggersEnding);
+  const nodes = region.objects.filter((object) => object.puzzleSwitch);
+  if (!core || nodes.length === 0) return;
+
+  ctx.save();
+  ctx.strokeStyle = CORE_CONDUIT_COLOR;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = CORE_CONDUIT_COLOR;
+  ctx.shadowBlur = 6;
+
+  for (const node of nodes) {
+    ctx.beginPath();
+    ctx.moveTo(node.position.x, node.position.y);
+    ctx.lineTo(core.position.x, core.position.y);
+    ctx.stroke();
+
+    // Tracinhos perpendiculares ao longo do fio, espacados - sugerem trilha
+    // de circuito/placa em vez de um raio reto generico.
+    const dx = core.position.x - node.position.x;
+    const dy = core.position.y - node.position.y;
+    const length = Math.hypot(dx, dy);
+    const dirX = dx / length;
+    const dirY = dy / length;
+    const perpX = -dirY;
+    const perpY = dirX;
+    const tickSpacing = 24;
+    for (let d = tickSpacing; d < length - tickSpacing; d += tickSpacing) {
+      const px = node.position.x + dirX * d;
+      const py = node.position.y + dirY * d;
+      ctx.beginPath();
+      ctx.moveTo(px - perpX * 4, py - perpY * 4);
+      ctx.lineTo(px + perpX * 4, py + perpY * 4);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = CORE_RING_COLOR;
+  for (const radius of [50, 34, 18]) {
+    ctx.lineWidth = radius === 18 ? 2 : 1;
+    ctx.beginPath();
+    ctx.arc(core.position.x, core.position.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
 
 /**
  * Gera, uma unica vez por regiao, uma textura de chao (canvas offscreen do
@@ -325,6 +432,10 @@ function createGroundTexture(
     ctx.beginPath();
     ctx.arc(x, y, 2 + Math.random() * 3, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  if (palette.energyConduits) {
+    drawSignalCoreDiagram(ctx, region);
   }
 
   return canvas;
@@ -657,6 +768,39 @@ function decorateSealedTile(
 }
 
 /**
+ * Mesmo cadeado de decorateSealedTile, mas com a haste girada, presa so do
+ * lado direito do corpo - a leitura classica de "cadeado aberto" - para o
+ * tile sealed comunicar visualmente que ruins-puzzle-01 ja foi resolvido e
+ * a passagem parou de bloquear (antes disso, o tile ficava com aparencia de
+ * trancado para sempre, mesmo depois de resolvido).
+ */
+function decorateUnsealedTile(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+
+  ctx.save();
+  ctx.shadowColor = UNSEALED_LOCK_COLOR;
+  ctx.shadowBlur = 6;
+  ctx.strokeStyle = UNSEALED_LOCK_COLOR;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(centerX + 4, centerY - 9, 6, Math.PI * 0.15, Math.PI * 1.55);
+  ctx.stroke();
+
+  ctx.fillStyle = UNSEALED_LOCK_COLOR;
+  ctx.beginPath();
+  ctx.roundRect(centerX - 9, centerY - 4, 18, 14, 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
  * Hash simples e estavel (mesmo id sempre gera o mesmo numero) - usado para
  * variar o agrupamento de pedras de cada decoracao sem Math.random() por
  * frame, o que faria o agrupamento "tremer" a cada render.
@@ -667,6 +811,278 @@ function hashString(value: string): number {
     hash = (hash * 31 + value.charCodeAt(i)) | 0;
   }
   return hash;
+}
+
+/**
+ * Placa de casco torta (quadrilatero irregular, nao um retangulo perfeito -
+ * para parecer metal amassado/arrancado) com rebites e uma marca de queimado
+ * do impacto - visual proprio para os destroços da capsula/nave da Landing
+ * Zone (decorationKind: 'wreckage'), distinto do agrupamento de pedras
+ * generico usado no resto do terreno alienigena.
+ */
+function renderWreckageDecoration(
+  ctx: CanvasRenderingContext2D,
+  screenPosition: Vector2,
+  hash: number,
+): void {
+  const angle = ((hash % 360) * Math.PI) / 180;
+  const width = 20 + (Math.abs(hash >> 3) % 12);
+  const height = 9 + (Math.abs(hash >> 6) % 5);
+  const jitter = (Math.abs(hash >> 9) % 5) - 2;
+
+  ctx.save();
+  ctx.translate(screenPosition.x, screenPosition.y);
+  ctx.rotate(angle);
+
+  ctx.fillStyle = WRECKAGE_PANEL_COLOR;
+  ctx.strokeStyle = WRECKAGE_EDGE_COLOR;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-width / 2, -height / 2 + jitter * 0.3);
+  ctx.lineTo(width / 2, -height / 2);
+  ctx.lineTo(width / 2 - 3, height / 2);
+  ctx.lineTo(-width / 2 + 4, height / 2 - jitter * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = WRECKAGE_RIVET_COLOR;
+  for (const [rx, ry] of [
+    [-width / 2 + 4, 0],
+    [width / 2 - 5, -1],
+  ] as const) {
+    ctx.beginPath();
+    ctx.arc(rx, ry, 1.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = WRECKAGE_SCORCH_COLOR;
+  ctx.beginPath();
+  ctx.ellipse(width * 0.15, 0, width * 0.22, height * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+/**
+ * Escoramento de madeira tipo mina/escavacao (trave horizontal + dois pes),
+ * para o acampamento improvisado de Kade na Buried Cache (decorationKind:
+ * 'campBeam') - sugere um tunel sustentado as pressas, nao uma estrutura
+ * planejada.
+ */
+function renderCampBeamDecoration(
+  ctx: CanvasRenderingContext2D,
+  screenPosition: Vector2,
+  hash: number,
+): void {
+  const height = 30 + (Math.abs(hash >> 2) % 8);
+  const lean = ((Math.abs(hash >> 5) % 7) - 3) * 0.03;
+
+  ctx.save();
+  ctx.translate(screenPosition.x, screenPosition.y);
+  ctx.rotate(lean);
+
+  ctx.fillStyle = CAMP_WOOD_COLOR;
+  ctx.strokeStyle = CAMP_WOOD_EDGE_COLOR;
+  ctx.lineWidth = 1;
+
+  ctx.beginPath();
+  ctx.roundRect(-16, -height / 2 - 4, 32, 6, 2);
+  ctx.fill();
+  ctx.stroke();
+
+  for (const legX of [-11, 11]) {
+    ctx.beginPath();
+    ctx.roundRect(legX - 3, -height / 2, 6, height, 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = CAMP_WOOD_GRAIN_COLOR;
+  ctx.lineWidth = 1;
+  for (const legX of [-11, 11]) {
+    ctx.beginPath();
+    ctx.moveTo(legX, -height / 2 + 4);
+    ctx.lineTo(legX, height / 2 - 4);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Lanterna de emergencia pendurada, com brilho ambar - unica fonte de "luz"
+ * quente do acampamento (decorationKind: 'campLantern'). O sway (balanco
+ * horizontal) e derivado do hash, nao do tempo - fica levemente torta de
+ * forma estavel, sem animar a cada frame.
+ */
+function renderCampLanternDecoration(
+  ctx: CanvasRenderingContext2D,
+  screenPosition: Vector2,
+  hash: number,
+): void {
+  const sway = ((Math.abs(hash >> 4) % 5) - 2) * 1.2;
+  const x = screenPosition.x + sway;
+  const y = screenPosition.y;
+
+  ctx.save();
+  const glow = ctx.createRadialGradient(x, y, 2, x, y, 26);
+  glow.addColorStop(0, CAMP_LANTERN_GLOW_COLOR);
+  glow.addColorStop(1, 'rgba(230, 180, 90, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, 26, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = CAMP_WOOD_EDGE_COLOR;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(screenPosition.x, y - 14);
+  ctx.lineTo(x, y - 4);
+  ctx.stroke();
+
+  ctx.fillStyle = CAMP_LANTERN_BODY_COLOR;
+  ctx.strokeStyle = OBJECT_OUTLINE_COLOR;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.roundRect(x - 5, y - 4, 10, 12, 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = CAMP_LANTERN_LIGHT_COLOR;
+  ctx.beginPath();
+  ctx.arc(x, y + 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * Mancha de terra revolvida com grumos - onde Kade desenterrou o drive
+ * (decorationKind: 'dugEarth'), sempre perto de fragment-pickup-08 na
+ * Buried Cache. Nenhuma flag de comportamento: e so a cicatriz da escavacao.
+ */
+function renderDugEarthDecoration(
+  ctx: CanvasRenderingContext2D,
+  screenPosition: Vector2,
+  hash: number,
+): void {
+  ctx.save();
+  ctx.fillStyle = DUG_EARTH_COLOR;
+  ctx.beginPath();
+  ctx.ellipse(screenPosition.x, screenPosition.y, 16, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  for (let i = 0; i < 5; i += 1) {
+    const seed = Math.abs((hash >> (i * 5)) % 1000) / 1000;
+    const angle = seed * Math.PI * 2;
+    const distance = 4 + seed * 9;
+    ctx.fillStyle = DUG_EARTH_CLUMP_COLOR;
+    ctx.beginPath();
+    ctx.arc(
+      screenPosition.x + Math.cos(angle) * distance,
+      screenPosition.y + Math.sin(angle) * distance * 0.5,
+      1.5 + seed * 2.5,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/**
+ * Silhueta afunilada (obelisco) com dois aneis horizontais, desenhada por
+ * baixo do orbe do puzzleSwitch (visualKind: 'spire') para as 5 torres de
+ * Thousand Spires que ainda respondem - o orbe (ja desenhado por quem chama)
+ * vira a "ponta acesa" no topo da torre, em vez de flutuar sozinho sobre o
+ * campo vazio.
+ */
+function renderSpireTower(
+  ctx: CanvasRenderingContext2D,
+  screenPosition: Vector2,
+  hash: number,
+): void {
+  const height = 44 + (Math.abs(hash >> 2) % 18);
+  const baseWidth = 9 + (Math.abs(hash >> 5) % 4);
+  const topWidth = 3;
+  const topY = screenPosition.y - 4;
+  const baseY = topY + height;
+
+  ctx.save();
+  ctx.fillStyle = SPIRE_SHAFT_COLOR;
+  ctx.strokeStyle = SPIRE_EDGE_COLOR;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(screenPosition.x - baseWidth / 2, baseY);
+  ctx.lineTo(screenPosition.x - topWidth / 2, topY);
+  ctx.lineTo(screenPosition.x + topWidth / 2, topY);
+  ctx.lineTo(screenPosition.x + baseWidth / 2, baseY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = SPIRE_RING_COLOR;
+  ctx.lineWidth = 1;
+  for (const t of [0.35, 0.68]) {
+    const y = baseY - height * t;
+    const halfWidth = (baseWidth / 2) * (1 - t) + (topWidth / 2) * t;
+    ctx.beginPath();
+    ctx.moveTo(screenPosition.x - halfWidth - 1, y);
+    ctx.lineTo(screenPosition.x + halfWidth + 1, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * Toco de torre quebrada + rubble na base, sem orbe/luz nenhuma - decoracao
+ * pura (decorationKind: 'brokenSpire') que preenche o "campo de mil torres"
+ * alem das 5 que ainda funcionam (ver renderSpireTower), reforcando a leitura
+ * de campo antigo e em grande parte morto, sem introduzir nenhum acento
+ * quente (a paleta fria de Thousand Spires e deliberada - docs/DECISIONS.md).
+ */
+function renderBrokenSpireDecoration(
+  ctx: CanvasRenderingContext2D,
+  screenPosition: Vector2,
+  hash: number,
+): void {
+  const height = 14 + (Math.abs(hash >> 3) % 10);
+  const baseWidth = 12 + (Math.abs(hash >> 6) % 5);
+  const tilt = ((Math.abs(hash >> 8) % 9) - 4) * 0.06;
+  const baseY = screenPosition.y + 4;
+
+  ctx.save();
+  ctx.translate(screenPosition.x, baseY);
+  ctx.rotate(tilt);
+
+  ctx.fillStyle = BROKEN_SPIRE_COLOR;
+  ctx.strokeStyle = BROKEN_SPIRE_EDGE_COLOR;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-baseWidth / 2, 0);
+  ctx.lineTo(-baseWidth / 2 + 2, -height);
+  ctx.lineTo(baseWidth / 2 - 3, -height + 3);
+  ctx.lineTo(baseWidth / 2, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = BROKEN_SPIRE_RUBBLE_COLOR;
+  for (let i = 0; i < 3; i += 1) {
+    const seed = Math.abs((hash >> (i * 6)) % 1000) / 1000;
+    const angle = seed * Math.PI * 2;
+    const distance = baseWidth / 2 + 2 + seed * 6;
+    ctx.beginPath();
+    ctx.arc(
+      screenPosition.x + Math.cos(angle) * distance,
+      baseY + Math.sin(angle) * distance * 0.4,
+      1.5 + seed * 2,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  }
 }
 
 function renderDecorations(
@@ -686,9 +1102,31 @@ function renderDecorations(
       canvasHeight,
     );
 
+    const hash = hashString(object.id);
+
+    if (object.decorationKind === 'wreckage') {
+      renderWreckageDecoration(ctx, screenPosition, hash);
+      continue;
+    }
+    if (object.decorationKind === 'campBeam') {
+      renderCampBeamDecoration(ctx, screenPosition, hash);
+      continue;
+    }
+    if (object.decorationKind === 'campLantern') {
+      renderCampLanternDecoration(ctx, screenPosition, hash);
+      continue;
+    }
+    if (object.decorationKind === 'dugEarth') {
+      renderDugEarthDecoration(ctx, screenPosition, hash);
+      continue;
+    }
+    if (object.decorationKind === 'brokenSpire') {
+      renderBrokenSpireDecoration(ctx, screenPosition, hash);
+      continue;
+    }
+
     // Agrupamento de pedras (3 circulos) em vez de um unico ponto generico -
     // reforca a leitura de "detrito/formacao rochosa" do terreno alienigena.
-    const hash = hashString(object.id);
     for (let i = 0; i < 3; i += 1) {
       const seed = Math.abs((hash >> (i * 7)) % 1000) / 1000;
       const angle = seed * Math.PI * 2 + i * 2.1;
@@ -817,6 +1255,10 @@ function renderInteractables(
       const progress = getPuzzleProgress(object.puzzleSwitch.puzzleId);
       const isActive = progress.includes(object.puzzleSwitch.switchId);
       const color = isActive ? SWITCH_ACTIVE_COLOR : SWITCH_COLOR;
+
+      if (object.visualKind === 'spire') {
+        renderSpireTower(ctx, screenPosition, hashString(object.id));
+      }
 
       ctx.save();
       ctx.shadowColor = color;
@@ -1604,15 +2046,18 @@ export function GameCanvas() {
         canvasHeight,
         decorateHazardTile,
       );
+      const sealedPuzzleSolved = useGameStore
+        .getState()
+        .solvedPuzzles.has(SEALED_TILE_PUZZLE_ID);
       renderTiles(
         ctx,
         regionData.sealed,
-        SEALED_COLOR,
-        SEALED_BORDER_COLOR,
+        sealedPuzzleSolved ? UNSEALED_COLOR : SEALED_COLOR,
+        sealedPuzzleSolved ? UNSEALED_BORDER_COLOR : SEALED_BORDER_COLOR,
         camera,
         canvasWidth,
         canvasHeight,
-        decorateSealedTile,
+        sealedPuzzleSolved ? decorateUnsealedTile : decorateSealedTile,
       );
       renderDecorations(
         ctx,

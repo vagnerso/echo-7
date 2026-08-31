@@ -14,12 +14,23 @@ import styles from './EchoPortrait.module.css';
  * tudo vetorial). Estatico (sem swing/hover de "andando") porque nenhuma das
  * duas telas tem animationTime nem estado de movimento - so o pulso via CSS
  * (antennaTip/lens/glow) continua vindo do modulo de estilo.
+ *
+ * className opcional: some junto de portraitWrap (mesmo elemento, nao um
+ * wrapper extra) - permite a quem usa setar a custom property --scale numa
+ * classe propria (ver EchoPortrait.module.css) sem duplicar largura/altura.
  */
-export function EchoPortrait() {
+export interface EchoPortraitProps {
+  className?: string;
+}
+
+export function EchoPortrait({ className }: EchoPortraitProps = {}) {
   const palette = useRobotPalette();
+  const wrapClassName = className
+    ? `${styles.portraitWrap} ${className}`
+    : styles.portraitWrap;
 
   return (
-    <div className={styles.portraitWrap}>
+    <div className={wrapClassName}>
       <div className={styles.portraitGlow} />
       <svg
         className={styles.portrait}

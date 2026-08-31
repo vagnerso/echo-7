@@ -1,7 +1,13 @@
+/*
+ * var(--scale, 1): sem valor competindo com o mesmo seletor (evita depender
+ * de ordem de import entre modulos) - quem usa o componente em espaco
+ * apertado (ex: EndingScreen) so precisa definir --scale numa classe extra,
+ * sem sobrescrever largura/altura em pixels espalhadas em varias regras.
+ */
 .portraitWrap {
   position: relative;
-  width: 140px;
-  height: 168px;
+  width: calc(140px * var(--scale, 1));
+  height: calc(168px * var(--scale, 1));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -21,8 +27,8 @@
 
 .portrait {
   position: relative;
-  width: 100px;
-  height: 120px;
+  width: calc(100px * var(--scale, 1));
+  height: calc(120px * var(--scale, 1));
   animation: portraitFloat 4s ease-in-out infinite;
 }
 

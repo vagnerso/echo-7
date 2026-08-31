@@ -4,48 +4,127 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 1.5rem;
-  background: #0b0d12;
+  gap: 1rem;
+  /* Radial sutil em vez de preto chapado - mesma ideia de profundidade do
+     ceu procedural do GameCanvas (REGION_GROUND_PALETTES), sem competir com
+     o texto: quase imperceptivel, so tira o "vazio total" do fundo. */
+  background: radial-gradient(
+    ellipse at 50% 35%,
+    #10161c 0%,
+    #0b0d12 55%,
+    #060709 100%
+  );
   color: #d8dbe2;
   font-family: ui-monospace, Consolas, monospace;
-  letter-spacing: 0.06em;
+  font-size: 0.92rem;
+  letter-spacing: 0.05em;
   text-align: center;
-  padding: 24px;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/*
+ * Bug real corrigido: com justify-content: center, quando o conteudo e mais
+ * alto que a viewport o navegador nao deixa rolar ate o topo do overflow (o
+ * scroll fica preso em 0 enquanto a centralizacao ja empurrou o inicio do
+ * conteudo pra cima da area visivel - o robo cortado no relato do
+ * desenvolvedor era exatamente isso, nao so "texto grande"). Espacadores
+ * (::before/::after) com margin: auto no lugar de justify-content: center
+ * continuam centralizando quando cabe, mas encolhem ate 0 em vez de recortar
+ * quando nao cabe - a rolagem alcanca o inicio normalmente.
+ */
+.screen::before,
+.screen::after {
+  content: '';
+  margin: auto 0;
+}
+
+/* Entrada escalonada (mensagem "decodificando" em sequencia, nao tudo de
+   uma vez) - por posicao dos filhos diretos de .screen, entao vale tanto
+   para EndingScreen quanto para EpilogueCompleteScreen (mesmo modulo,
+   filhos em ordem parecida) sem precisar de uma classe por elemento. */
+.screen > * {
+  animation: fadeInUp 0.5s ease-out both;
+}
+.screen > *:nth-child(1) {
+  animation-delay: 0s;
+}
+.screen > *:nth-child(2) {
+  animation-delay: 0.35s;
+}
+.screen > *:nth-child(3) {
+  animation-delay: 0.7s;
+}
+.screen > *:nth-child(4) {
+  animation-delay: 1.05s;
+}
+.screen > *:nth-child(5) {
+  animation-delay: 1.3s;
+}
+.screen > *:nth-child(n + 6) {
+  animation-delay: 1.45s;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Menor que o retrato padrao (140x168, usado no MainMenu/EpilogueComplete)
+   - aqui a tela ja tem 2 paineis de texto + 2 botoes disputando altura, e o
+   robo e so um acento no topo, nao o foco da tela. */
+.compactPortrait {
+  --scale: 0.65;
 }
 
 .block {
+  composes: panel from '@/styles/hudPanel.module.css';
   max-width: 560px;
+  padding: 12px 24px;
+}
+
+/* Segundo bloco (o gancho do "novo sinal") ganha o acento roxo do proprio
+   hookTitle em vez do ciano padrao do painel - reforca visualmente que e
+   uma revelacao diferente da resposta do nucleo. */
+.hookBlock {
+  border-color: rgba(170, 120, 230, 0.35);
+  filter: drop-shadow(0 0 8px rgba(170, 120, 230, 0.18));
 }
 
 .title {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: #5ee6c8;
   text-shadow: 0 0 16px rgba(94, 230, 200, 0.5);
   letter-spacing: 0.1em;
 }
 
 .line {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   opacity: 0.85;
-  line-height: 1.6;
+  line-height: 1.45;
 }
 
 .hookTitle {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: rgba(170, 120, 230, 0.9);
   letter-spacing: 0.1em;
 }
 
 .toBeContinued {
-  margin-top: 1rem;
-  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
   opacity: 0.6;
   letter-spacing: 0.2em;
 }
 
 .button {
   composes: button from '@/styles/hudPanel.module.css';
-  margin-top: 1rem;
-  padding: 0.75rem 1.5rem;
+  margin-top: 0.4rem;
+  padding: 0.6rem 1.3rem;
 }

@@ -49,9 +49,8 @@ export const ptBR: Translations = {
     newCoordinate:
       'Uma nova coordenada foi registrada na memória central do ECHO-7.',
     searchContinues: 'A busca continua...',
-    toBeContinued: 'CONTINUA',
     returnToMenu: 'VOLTAR AO MENU',
-    continueExploring: 'CONTINUAR EXPLORANDO',
+    continueExploring: 'DESVENDAR O MISTÉRIO',
   },
   epilogueEnding: {
     sequenceComplete: 'SEQUÊNCIA COMPLETA — AS CINCO NOTAS COINCIDIRAM',
@@ -99,6 +98,18 @@ export const ptBR: Translations = {
     approachCore: 'Aproxime-se do Núcleo.',
     exploreThousandSpires: 'Explore as Mil Torres.',
   },
+  // Nomes mantidos como nome proprio em ingles (Buried Cache/Buried Chord)
+  // seguindo o mesmo precedente ja usado no texto de fragment-11 ("O Buried
+  // Chord fica em silencio...") - as outras 4 regioes ja tinham nome em
+  // portugues estabelecido pelo proprio texto de objetivos acima.
+  regionNames: {
+    'region-1': 'Zona de Pouso',
+    'region-2': 'Ruínas Antigas',
+    'region-3': 'Núcleo de Sinal',
+    'region-4': 'Buried Cache',
+    'region-5': 'Mil Torres',
+    'region-6': 'Buried Chord',
+  },
   items: {
     'energy-cell': 'Célula de Energia',
     'ancient-component': 'Componente Antigo',
@@ -135,6 +146,8 @@ export const ptBR: Translations = {
     },
   },
   fragments: {
+    'fragment-13':
+      'Log 01 (sistema automático) - Pouso confirmado. Integridade do casco: 94%. Nenhuma anomalia atmosférica detectada. Tripulação liberada para desembarque. Início do levantamento preliminar em T-menos 6 horas.',
     'fragment-01':
       'Log 03 - Chegada. A atmosfera está limpa. Nenhum sinal de vida hostil. O sinal ainda está lá, exatamente onde o levantamento indicou. O Comando quer relatórios diários. Este lugar parece... observado.',
     'fragment-02':
