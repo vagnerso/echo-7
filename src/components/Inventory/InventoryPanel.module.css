@@ -66,6 +66,39 @@
   gap: 16px;
 }
 
+/*
+ * Marcador de cor por tipo (--icon-color vem de content/itemColors.ts) -
+ * mesma tecnica de custom property ja usada em SettingsScreen.module.css
+ * para os swatches de cor do robo. Da ao item do inventario a mesma
+ * identidade visual do coletavel equivalente desenhado no mundo
+ * (GameCanvas), em vez de uma lista so de texto.
+ */
+.itemIcon {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 2px;
+  background: var(--icon-color);
+  box-shadow: 0 0 4px var(--icon-color);
+}
+
+.itemIcon[data-dim] {
+  opacity: 0.3;
+  box-shadow: none;
+}
+
+.fragmentIcon {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 6px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 7px solid var(--icon-color);
+  filter: drop-shadow(0 0 3px var(--icon-color));
+}
+
 .capacity {
   margin-top: 16px;
   padding-top: 12px;

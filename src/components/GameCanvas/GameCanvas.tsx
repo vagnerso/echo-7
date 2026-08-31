@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { TouchControls } from '@/components/TouchControls/TouchControls';
 import { MEMORY_FRAGMENTS } from '@/content/fragments';
+import { FRAGMENT_COLOR, ITEM_TYPE_COLORS } from '@/content/itemColors';
 import { PUZZLES } from '@/content/puzzles';
 import { REGIONS } from '@/content/regions';
 import {
@@ -107,6 +108,10 @@ const PLAYER_LENS_COLOR = '#08090c';
 const PLAYER_LENS_GLOW = 'rgba(94, 230, 200, 0.9)';
 const PLAYER_ANTENNA_COLOR = 'rgba(216, 219, 226, 0.8)';
 const PLAYER_ANTENNA_TIP_COLOR = '#ffcf7a';
+// Mesmo tom da lente/glow (PLAYER_LENS_GLOW) - o "sinal" do radar sai do
+// mesmo sensor que ja e ciano, em vez de introduzir uma terceira cor de
+// identidade so para o scanner.
+const ANTENNA_SIGNAL_RING_COLOR = '94, 230, 200';
 const WALL_COLOR = 'rgba(94, 230, 200, 0.12)';
 const WALL_BORDER_COLOR = 'rgba(94, 230, 200, 0.4)';
 const HAZARD_COLOR = 'rgba(230, 120, 90, 0.18)';
@@ -120,13 +125,25 @@ const ROCK_CLUSTER_COLORS = [
 ];
 const INTERACTABLE_COLOR = 'rgba(230, 170, 94, 0.7)';
 const INTERACTABLE_ACTIVATED_COLOR = 'rgba(94, 230, 140, 0.8)';
-const COLLECTIBLE_COLOR = 'rgba(240, 210, 90, 0.85)';
 const EXIT_COLOR = 'rgba(150, 170, 240, 0.8)';
 const SWITCH_COLOR = 'rgba(170, 120, 230, 0.6)';
 const SWITCH_ACTIVE_COLOR = 'rgba(200, 160, 255, 0.95)';
 const HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.9)';
 const SCANNABLE_COLOR = 'rgba(120, 170, 255, 0.7)';
-const MEMORY_FRAGMENT_COLOR = 'rgba(230, 130, 200, 0.85)';
+
+// Contorno + brilho especular reutilizados em todo objeto do mundo (porta,
+// coletavel, switch, fragmento, scannable) - mesma tecnica ja usada na lente
+// do robo (renderPlayer): shadowBlur na cor do proprio objeto + um ponto
+// branco translucido simulando reflexo. Unifica o "material" de tudo que e
+// placeholder vetorial (ainda sem arte de verdade) sob uma unica linguagem
+// visual, em vez de cada forma ter um tratamento diferente.
+const OBJECT_OUTLINE_COLOR = 'rgba(8, 9, 12, 0.85)';
+const OBJECT_HIGHLIGHT_COLOR = 'rgba(255, 255, 255, 0.75)';
+
+const HAZARD_STRIPE_COLOR = 'rgba(230, 120, 90, 0.5)';
+const SEALED_LOCK_COLOR = 'rgba(210, 170, 255, 0.9)';
+const WALL_BEVEL_LIGHT = 'rgba(164, 245, 226, 0.25)';
+const WALL_BEVEL_DARK = 'rgba(5, 6, 10, 0.35)';
 
 /** Preenchimento visivel so fora dos limites do mundo (camera perto das bordas). */
 const VOID_COLOR = '#05060a';
@@ -305,6 +322,7 @@ function renderPlayer(
   animationTime: number,
   isMoving: boolean,
   palette: RobotPalette,
+  isScannerActive: boolean,
 ): void {
   // Fase da passada quando andando; parado, usa um seno mais lento como
   // flutuacao/respiracao sutil - deixa o robo "vivo" mesmo parado.
@@ -319,16 +337,61 @@ function renderPlayer(
   const halfH = size.y / 2;
 
   // Esteiras/pes: alternam verticalmente durante o movimento (passada);
-  // ficam simetricos e parados quando o robo esta parado.
+  // ficam simetricos e parados quando o robo esta parado. Contorno +
+  // friso claro (em vez de so um retangulo solido) para "destacar" o pe
+  // como peca mecanica propria, no mesmo espirito do contorno do chassi.
   const legSwing = isMoving ? Math.sin(walkPhase) * 3 : 0;
   const legY = centerY + halfH - 3;
-  ctx.fillStyle = palette.leg;
-  ctx.beginPath();
-  ctx.roundRect(centerX - halfW * 0.7 - 5, legY + legSwing, 10, 7, 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.roundRect(centerX + halfW * 0.7 - 5, legY - legSwing, 10, 7, 2);
-  ctx.fill();
+  const legWidth = 11;
+  const legHeight = 8;
+  for (const [legCenterX, swing] of [
+    [centerX - halfW * 0.7, legSwing],
+    [centerX + halfW * 0.7, -legSwing],
+  ] as const) {
+    const legTop = legY + swing;
+    ctx.fillStyle = palette.leg;
+    ctx.strokeStyle = palette.outline;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(legCenterX - legWidth / 2, legTop, legWidth, legHeight, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = palette.light;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(legCenterX - legWidth / 2 + 2, legTop + legHeight * 0.4);
+    ctx.lineTo(legCenterX + legWidth / 2 - 2, legTop + legHeight * 0.4);
+    ctx.stroke();
+  }
+
+  // Bracos: pequenos estabilizadores nas laterais, balancando em contrafase
+  // com as pernas (contrapeso natural de quem anda) - parados quando o robo
+  // esta parado. Desenhados antes do chassi de proposito: a silhueta do
+  // corpo cobre a "junta" do ombro, entao so o toco externo do braco fica
+  // visivel, como se estivesse encaixado no chassi.
+  const armSwing = isMoving ? Math.sin(walkPhase + Math.PI) * 2 : 0;
+  const armY = centerY - halfH * 0.2;
+  const armWidth = 6;
+  const armHeight = 12;
+  for (const armCenterX of [
+    centerX - halfW - armWidth / 2 + 1,
+    centerX + halfW + armWidth / 2 - 1,
+  ]) {
+    ctx.fillStyle = palette.leg;
+    ctx.strokeStyle = palette.outline;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(
+      armCenterX - armWidth / 2,
+      armY + armSwing - armHeight / 2,
+      armWidth,
+      armHeight,
+      2,
+    );
+    ctx.fill();
+    ctx.stroke();
+  }
 
   // Chassi: retangulo arredondado com gradiente vertical para dar volume
   // sem depender de sprite/imagem (decisao da Fase 0: sem pipeline de assets).
@@ -404,7 +467,38 @@ function renderPlayer(
   ctx.arc(centerX, antennaTipY, 2.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+
+  // Sinal de radar: com o scanner ligado, a ponta da antena emite aneis
+  // concentricos que se expandem e desaparecem - deixa claro, so olhando pro
+  // robo, que ele esta "escaneando", sem precisar olhar so pro painel do
+  // scanner no canto da tela. Dois aneis defasados (metade do periodo um do
+  // outro) para nunca ter um instante sem nenhum aro visivel na tela.
+  if (isScannerActive) {
+    const RING_PERIOD_MS = 900;
+    const RING_MAX_RADIUS = 16;
+    ctx.save();
+    ctx.lineWidth = 1.5;
+    for (const phaseOffset of [0, RING_PERIOD_MS / 2]) {
+      const progress =
+        ((animationTime + phaseOffset) % RING_PERIOD_MS) / RING_PERIOD_MS;
+      const radius = 3 + progress * RING_MAX_RADIUS;
+      const alpha = 0.6 * (1 - progress);
+      ctx.strokeStyle = `rgba(${ANTENNA_SIGNAL_RING_COLOR}, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(centerX, antennaTipY, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 }
+
+type TileDecorator = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) => void;
 
 function renderTiles(
   ctx: CanvasRenderingContext2D,
@@ -414,6 +508,7 @@ function renderTiles(
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
+  decorate?: TileDecorator,
 ): void {
   ctx.fillStyle = fillColor;
   ctx.strokeStyle = borderColor;
@@ -427,7 +522,103 @@ function renderTiles(
     );
     ctx.fillRect(screenTopLeft.x, screenTopLeft.y, tile.width, tile.height);
     ctx.strokeRect(screenTopLeft.x, screenTopLeft.y, tile.width, tile.height);
+    decorate?.(
+      ctx,
+      screenTopLeft.x,
+      screenTopLeft.y,
+      tile.width,
+      tile.height,
+    );
   }
+}
+
+/**
+ * Bisel simples (aresta clara + aresta escura) sobre o retangulo translucido
+ * da parede - da uma leve sensacao de volume/painel tecnico em vez de uma
+ * cor solida chapada, sem custo de shadowBlur (paredes se repetem muito:
+ * todo o perimetro de cada regiao).
+ */
+function decorateWallTile(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = WALL_BEVEL_LIGHT;
+  ctx.beginPath();
+  ctx.moveTo(x + 1, y + height - 1);
+  ctx.lineTo(x + 1, y + 1);
+  ctx.lineTo(x + width - 1, y + 1);
+  ctx.stroke();
+
+  ctx.strokeStyle = WALL_BEVEL_DARK;
+  ctx.beginPath();
+  ctx.moveTo(x + width - 1, y + 1);
+  ctx.lineTo(x + width - 1, y + height - 1);
+  ctx.lineTo(x + 1, y + height - 1);
+  ctx.stroke();
+}
+
+/**
+ * Faixas diagonais tipo "fita de risco" sobre o tile de hazard - a cor
+ * translucida sozinha nao comunicava perigo de forma tao imediata quanto um
+ * padrao de listras, linguagem visual ja convencionada para zona de risco.
+ */
+function decorateHazardTile(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.clip();
+
+  ctx.strokeStyle = HAZARD_STRIPE_COLOR;
+  ctx.lineWidth = 5;
+  const step = 12;
+  for (let offset = -height; offset < width + height; offset += step) {
+    ctx.beginPath();
+    ctx.moveTo(x + offset, y + height);
+    ctx.lineTo(x + offset + height, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * Icone de cadeado centralizado no tile selado - comunica "trancado ate
+ * resolver o puzzle" de forma muito mais direta do que uma cor translucida
+ * generica igual as demais.
+ */
+function decorateSealedTile(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+
+  ctx.save();
+  ctx.shadowColor = SEALED_LOCK_COLOR;
+  ctx.shadowBlur = 6;
+  ctx.strokeStyle = SEALED_LOCK_COLOR;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY - 4, 6, Math.PI, 0);
+  ctx.stroke();
+
+  ctx.fillStyle = SEALED_LOCK_COLOR;
+  ctx.beginPath();
+  ctx.roundRect(centerX - 9, centerY - 4, 18, 14, 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 /**
@@ -490,12 +681,19 @@ function renderInteractables(
   nearestId: string | null,
   getPuzzleProgress: (puzzleId: string) => readonly string[],
   solvedPuzzles: ReadonlySet<string>,
+  hasDeepScanner: boolean,
   camera: Camera,
   canvasWidth: number,
   canvasHeight: number,
 ): void {
   for (const object of objects) {
     if (!object.interactable) continue;
+    // Mesmo gate de scannables (systems/scannerSystem.ts): um objeto oculto
+    // atras do Deep Scanner nao pode renderizar aqui so porque tambem e
+    // interactable (bug corrigido - buried-cache-entrance vazava um retangulo
+    // de "porta" bem visivel mesmo antes do upgrade, denunciando a entrada
+    // secreta da Buried Cache).
+    if (object.requiresDeepScanner && !hasDeepScanner) continue;
 
     const screenPosition = worldToScreen(
       object.position,
@@ -522,47 +720,132 @@ function renderInteractables(
     }
 
     if (object.exit) {
-      // Retangulo tipo "porta", para diferenciar de todo o resto - placeholder ate existir arte de verdade.
+      // Retangulo tipo "porta" - placeholder ate existir arte de verdade,
+      // com glow + vinco central sugerindo duas folhas (ver comentario do
+      // OBJECT_OUTLINE_COLOR acima: mesma tecnica de brilho da lente do robo).
+      const doorX = screenPosition.x - 8;
+      const doorY = screenPosition.y - 12;
+      ctx.save();
+      ctx.shadowColor = EXIT_COLOR;
+      ctx.shadowBlur = 8;
       ctx.fillStyle = EXIT_COLOR;
-      ctx.fillRect(screenPosition.x - 8, screenPosition.y - 12, 16, 24);
+      ctx.strokeStyle = OBJECT_OUTLINE_COLOR;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(doorX, doorY, 16, 24, 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.strokeStyle = OBJECT_OUTLINE_COLOR;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(screenPosition.x, doorY + 2);
+      ctx.lineTo(screenPosition.x, doorY + 22);
+      ctx.stroke();
       continue;
     }
 
     if (object.collectible) {
-      // Item coletavel: quadrado, para diferenciar de um interagivel fixo (console) - placeholder ate existir arte de verdade.
-      ctx.fillStyle = COLLECTIBLE_COLOR;
-      ctx.fillRect(screenPosition.x - 8, screenPosition.y - 8, 16, 16);
+      // Item coletavel: quadrado, para diferenciar de um interagivel fixo
+      // (console) - placeholder ate existir arte de verdade. Cor vem de
+      // content/itemColors.ts (mesma fonte usada no painel de inventario),
+      // para resource/component terem uma identidade visual consistente
+      // entre o chao e o inventario.
+      const collectibleColor = ITEM_TYPE_COLORS[object.collectible.type];
+      ctx.save();
+      ctx.shadowColor = collectibleColor;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = collectibleColor;
+      ctx.strokeStyle = OBJECT_OUTLINE_COLOR;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(
+        screenPosition.x - 8,
+        screenPosition.y - 8,
+        16,
+        16,
+        3,
+      );
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = OBJECT_HIGHLIGHT_COLOR;
+      ctx.beginPath();
+      ctx.arc(screenPosition.x - 3, screenPosition.y - 3, 1.6, 0, Math.PI * 2);
+      ctx.fill();
       continue;
     }
 
     if (object.puzzleSwitch) {
       const progress = getPuzzleProgress(object.puzzleSwitch.puzzleId);
       const isActive = progress.includes(object.puzzleSwitch.switchId);
-      ctx.fillStyle = isActive ? SWITCH_ACTIVE_COLOR : SWITCH_COLOR;
+      const color = isActive ? SWITCH_ACTIVE_COLOR : SWITCH_COLOR;
+
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = isActive ? 10 : 5;
+      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(screenPosition.x, screenPosition.y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.strokeStyle = OBJECT_OUTLINE_COLOR;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(screenPosition.x, screenPosition.y, 10, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = OBJECT_HIGHLIGHT_COLOR;
+      ctx.beginPath();
+      ctx.arc(screenPosition.x - 3, screenPosition.y - 3, 1.8, 0, Math.PI * 2);
       ctx.fill();
       continue;
     }
 
     if (object.memoryFragment) {
       // Triangulo: diferencia visualmente de todo o resto - placeholder ate existir arte de verdade.
-      ctx.fillStyle = MEMORY_FRAGMENT_COLOR;
+      ctx.save();
+      ctx.shadowColor = FRAGMENT_COLOR;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = FRAGMENT_COLOR;
+      ctx.strokeStyle = OBJECT_OUTLINE_COLOR;
+      ctx.lineWidth = 1.3;
       ctx.beginPath();
       ctx.moveTo(screenPosition.x, screenPosition.y - 10);
       ctx.lineTo(screenPosition.x + 9, screenPosition.y + 7);
       ctx.lineTo(screenPosition.x - 9, screenPosition.y + 7);
       ctx.closePath();
       ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = OBJECT_HIGHLIGHT_COLOR;
+      ctx.beginPath();
+      ctx.arc(screenPosition.x - 2, screenPosition.y - 1, 1.4, 0, Math.PI * 2);
+      ctx.fill();
       continue;
     }
 
-    ctx.fillStyle = activated.get(object.id)
+    const color = activated.get(object.id)
       ? INTERACTABLE_ACTIVATED_COLOR
       : INTERACTABLE_COLOR;
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(screenPosition.x, screenPosition.y, 10, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = OBJECT_OUTLINE_COLOR;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(screenPosition.x, screenPosition.y, 10, 0, Math.PI * 2);
+    ctx.stroke();
   }
   // Restaura para nao vazar opacidade reduzida para o que for desenhado
   // depois (scannables, particulas, o proprio robo).
@@ -601,13 +884,25 @@ function renderScannables(
     }
 
     // Losango em vez de circulo: diferencia visualmente de interactable - placeholder ate existir arte de verdade.
+    ctx.save();
+    ctx.shadowColor = SCANNABLE_COLOR;
+    ctx.shadowBlur = 8;
     ctx.fillStyle = SCANNABLE_COLOR;
+    ctx.strokeStyle = OBJECT_OUTLINE_COLOR;
+    ctx.lineWidth = 1.3;
     ctx.beginPath();
     ctx.moveTo(screenPosition.x, screenPosition.y - 10);
     ctx.lineTo(screenPosition.x + 10, screenPosition.y);
     ctx.lineTo(screenPosition.x, screenPosition.y + 10);
     ctx.lineTo(screenPosition.x - 10, screenPosition.y);
     ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.fillStyle = OBJECT_HIGHLIGHT_COLOR;
+    ctx.beginPath();
+    ctx.arc(screenPosition.x - 2, screenPosition.y - 2, 1.4, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -1048,6 +1343,7 @@ export function GameCanvas() {
         camera,
         canvas.width,
         canvas.height,
+        decorateWallTile,
       );
       renderTiles(
         ctx,
@@ -1057,6 +1353,7 @@ export function GameCanvas() {
         camera,
         canvas.width,
         canvas.height,
+        decorateHazardTile,
       );
       renderTiles(
         ctx,
@@ -1066,6 +1363,7 @@ export function GameCanvas() {
         camera,
         canvas.width,
         canvas.height,
+        decorateSealedTile,
       );
       renderDecorations(
         ctx,
@@ -1081,6 +1379,7 @@ export function GameCanvas() {
         nearestInteractableRef.current?.id ?? null,
         (puzzleId) => puzzleProgressRef.current.get(puzzleId) ?? [],
         useGameStore.getState().solvedPuzzles,
+        useGameStore.getState().installedUpgrades.has('deep-scanner'),
         camera,
         canvas.width,
         canvas.height,
@@ -1120,6 +1419,7 @@ export function GameCanvas() {
         animationTimeRef.current,
         isMovingRef.current,
         robotPalette,
+        useUiStore.getState().isScannerActive,
       );
 
       const transition = transitionRef.current;

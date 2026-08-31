@@ -833,3 +833,83 @@ Dois problemas reportados depois de jogar a Fase C de verdade.
 **Motivo:** mesmo padrão de correção já usado no bug do hover (resolver por especificidade, não torcer para a ordem do bundler ficar favorável) - a raiz é a mesma classe de problema (duas regras de mesma especificidade competindo por uma propriedade, vindas de arquivos `composes` diferentes), então a mesma categoria de fix se aplica. Vale ter em mente para qualquer botão futuro que precise sobrescrever uma propriedade que a classe `.button` compartilhada já define.
 
 **Lição geral desta fase:** os três problemas encontrados via revisão manual (2 aqui + o `requiresDeepScanner`/interação da seção anterior) reforçam algo já registrado antes: combinações de flags/composição **nunca antes exercitadas** - mesmo reaproveitando sistemas "já testados" - podem esconder lacunas que só aparecem quando um caso de uso novo as força a interagir de um jeito novo.
+
+## v2.1 — Polish visual de mapas e itens
+
+Pedido do desenvolvedor: revisar o visual dos mapas (tiles) e itens do mundo, sem alterar mecânica. Escopo mantido só em renderização (`GameCanvas.tsx`) e no painel de inventário - nenhuma mudança em `content/regions.ts`, sistemas de colisão/interação ou nos testes existentes.
+
+### Bug encontrado: `buried-cache-entrance` renderizava visível antes do Deep Scanner
+
+**Contexto:** exatamente a mesma categoria de lacuna já documentada na Fase C (ver "lição geral" acima), agora numa combinação de flags diferente: `buried-cache-entrance` é o primeiro objeto do jogo a ser `scannable + interactable + requiresDeepScanner + exit` ao mesmo tempo. `hidden-signal-01` (único precedente de `requiresDeepScanner`) nunca é `interactable`, então o caminho de código de `renderInteractables` com esse gate nunca tinha sido exercitado.
+
+**Causa raiz:** `renderInteractables` (`GameCanvas.tsx`) filtrava só por `object.interactable`, nunca por `requiresDeepScanner` - diferente de `renderScannables` e de `findNearestInteractable` (`interactionSystem.ts`), que já tinham esse filtro. Resultado: a "porta" da entrada secreta (retângulo cor `EXIT_COLOR`) aparecia no mapa da Landing Zone mesmo sem o Deep Scanner instalado - a tecla E não fazia nada nela (`interactionSystem.ts` bloqueava corretamente), mas o objeto inteiro deixava de ser secreto, bastava o jogador ver o retângulo e ir até lá.
+
+**Decisão:** `renderInteractables` ganhou um parâmetro `hasDeepScanner` e o mesmo `if (object.requiresDeepScanner && !hasDeepScanner) continue;` já usado em `renderScannables`/`interactionSystem.ts` - o objeto some da tela por completo (não fica dimmed como o caso de `requiresPuzzleSolved`), porque semanticamente é "isto não deveria existir aos olhos do jogador ainda", não "isto existe mas está bloqueado".
+
+**Verificação:** navegação real no dev server (Playwright) - screenshot no ponto exato da entrada sem o upgrade (nada visível) e depois de coletar um `ancient-component` (que auto-instala o Deep Scanner via `upgradeSystem`), no mesmo ponto (anel de destaque de "mais próximo interagível" aparece, confirmando que o objeto passou a ser considerado).
+
+### Técnica única de "vidro" para todo objeto do mundo (glow + contorno + brilho especular)
+
+**Contexto:** cada forma-placeholder (porta, coletável, switch, fragmento, scannable) era um preenchimento sólido (`fillRect`/`arc`/triângulo) sem contorno nem profundidade - só o robô (`renderPlayer`) já tinha um tratamento mais trabalhado (gradiente no chassi, glow via `shadowBlur` na lente, ponto de brilho especular).
+
+**Decisão:** todo objeto do mundo (exceto decorações, que já tinham variação orgânica própria) ganhou o mesmo tratamento de três camadas: `shadowBlur` na cor do próprio objeto (glow), `strokeStyle` escuro fixo (`OBJECT_OUTLINE_COLOR`) como contorno, e um pequeno círculo branco translúcido (`OBJECT_HIGHLIGHT_COLOR`) simulando reflexo de luz.
+
+**Alternativas consideradas:** um gradiente radial por objeto (`createRadialGradient`), mais próximo do gradiente do chassi do robô.
+
+**Motivo:** gradiente radial aloca um `CanvasGradient` novo por objeto a cada frame - custo desnecessário para formas pequenas (10-20px) onde a diferença visual contra um glow + brilho especular seria mínima. A combinação escolhida reaproveita exatamente a técnica já validada em `renderPlayer` (lente), em vez de inventar um segundo tratamento visual - um placeholder vetorial e outro não deveriam "pertencer" a linguagens visuais diferentes só porque foram desenhados em funções diferentes.
+
+**Silhuetas mantidas intactas:** nenhuma forma, tamanho ou posição mudou (retângulo=porta, quadrado=coletável, círculo=switch/interagível genérico, triângulo=fragmento, losango=scannable) - o jogador já aprendeu essa linguagem visual; só o "material" de cada forma mudou.
+
+### Tiles ganharam decoração por tipo via callback opcional
+
+**Contexto:** `renderTiles` é uma função genérica compartilhada por wall/hazard/sealed, cada um só variando cor de preenchimento/borda. Hazard e sealed precisavam de um desenho extra (faixas de risco; ícone de cadeado) que não faz sentido no tipo wall, então não podia entrar direto no corpo da função sem um `if` de tipo dentro dela.
+
+**Decisão:** `renderTiles` ganhou um parâmetro opcional `decorate?: TileDecorator` (uma função `(ctx, x, y, w, h) => void`), chamado depois do `fillRect`/`strokeRect` de cada tile. Três funções pequenas (`decorateWallTile`, `decorateHazardTile`, `decorateSealedTile`) implementam o desenho extra de cada tipo e são passadas pelo call site correspondente.
+
+**Alternativas consideradas:** três funções de render totalmente separadas (uma por tipo de tile, sem compartilhar o loop).
+
+**Motivo:** callback opcional mantém o loop principal (iterar tiles + converter para tela) escrito uma única vez, sem duplicar essa parte em três funções quase idênticas - o `TileDecorator` isola só a parte que realmente varia por tipo. Hazard usa clip + linhas diagonais (fita de risco); sealed usa um ícone de cadeado com glow (não deveria se confundir com o hazard, que é "perigo", não "trancado"); wall usa um bisel simples sem `shadowBlur` (tiles de parede se repetem muito - todo o perímetro de cada região -, então evitar glow neles mantém o custo por frame previsível).
+
+### Cor de item centralizada em `content/itemColors.ts`, compartilhada entre canvas e inventário
+
+**Contexto:** o quadrado do coletável no mundo (`GameCanvas.tsx`) usava uma única cor (`COLLECTIBLE_COLOR`) para qualquer `collectible.type` - `energy-cell` (resource) e `ancient-component` (component) eram visualmente idênticos no chão. O painel de inventário (`InventoryPanel.tsx`), por sua vez, era só texto, sem nenhuma cor.
+
+**Decisão:** novo módulo `content/itemColors.ts`, exportando `ITEM_TYPE_COLORS` (um record por `InventoryItem['type']`) e `FRAGMENT_COLOR`. `GameCanvas.tsx` usa `ITEM_TYPE_COLORS[object.collectible.type]` para colorir o coletável no mundo; `InventoryPanel.tsx` usa a mesma constante para um marcador quadrado ao lado do nome do item (mesma técnica de custom property `--icon-color` já usada em `SettingsScreen.tsx` para os swatches de cor do robô).
+
+**Alternativas consideradas:** manter as cores duplicadas (uma constante em `GameCanvas.tsx`, outra em CSS/inline no `InventoryPanel`).
+
+**Motivo:** sem uma fonte única, as duas telas podiam divergir silenciosamente com o tempo (alguém muda a cor no canvas e esquece o painel, ou vice-versa) - o mesmo raciocínio já aplicado a `content/robotColors.ts` (cor do robô compartilhada entre `GameCanvas` e `SettingsScreen`). Efeito colateral bem-vindo: agora dá pra diferenciar `resource` de `component` também no chão (antes eram a mesma cor), não só no inventário.
+
+**Screenshots:** os quatro screenshots referenciados no `README.md` (`main-menu`, `gameplay-landing-zone`, `scanner-detection`, `inventory-panel`) foram todos regerados via Playwright depois desta fase - o `main-menu.png` já estava desatualizado desde a fase do retrato vetorial do ECHO-7 (v2.0 seguinte), sem ter sido notado antes.
+
+## v2.1 — Anatomia do robô: pés destacados, braços e sinal de radar na antena
+
+Pedido do desenvolvedor: deixar o ECHO-7 mais bonito - pés mais destacados, braços, e a antena "sinalizando" quando o scanner estiver ativo. Escopo só em `renderPlayer` (`GameCanvas.tsx`) e no retrato estático do menu (`MainMenu.tsx`) - nenhuma mudança em colisão, tamanho de sprite (`player.size` continua 32x32) ou em qualquer sistema de jogo.
+
+### Pés e braços desenhados com o mesmo vocabulário visual do chassi
+
+**Contexto:** as "esteiras/pés" existiam desde a Fase 2, mas como um retângulo solido sem contorno - a única peça do robô sem o tratamento de contorno (`palette.outline`) que o chassi já tinha desde o início.
+
+**Decisão:** pernas ganharam contorno (`palette.outline`) e um friso claro (`palette.light`) no meio, simulando uma junta/esteira em vez de um bloco liso; ficaram ligeiramente maiores (11x8 em vez de 10x7). Braços são peças novas - pequenos retângulos (`palette.leg`, mesmo material das pernas) presos nas laterais do chassi, na altura do "ombro", desenhados **antes** do chassi (mesma ordem já usada para as pernas) para que o próprio corpo cubra a junta e só o toco externo do braço fique visível.
+
+**Animação:** braços balançam em contrafase com as pernas (`Math.sin(walkPhase + Math.PI)`, contra `Math.sin(walkPhase)` das pernas) - contrapeso natural de quem anda, reaproveitando a mesma variável `walkPhase` já calculada, sem introduzir um segundo relógio de animação.
+
+**Motivo:** contorno + friso é o mesmo tratamento de duas camadas já usado nos objetos do mundo (v2.1 anterior) e no chassi do robô - em vez de inventar um terceiro vocabulário visual só para os pés. Braços na cor `palette.leg` (não `palette.body`) para se lerem como "acessório mecânico", a mesma categoria visual das pernas, não uma extensão do chassi principal.
+
+### Sinal de radar na antena, condicionado a `isScannerActive`
+
+**Contexto:** a ponta da antena já pulsava (glow ambar) o tempo todo, independente do jogador ter ligado o scanner (`Q`) ou não - não havia nenhuma pista visual no próprio robô de que o scanner estava ativo, só o painel `ScannerOverlay` no canto da tela.
+
+**Decisão:** `renderPlayer` ganhou um parâmetro `isScannerActive`. Quando verdadeiro, dois anéis concêntricos (cor ciano, mesmo tom de `PLAYER_LENS_GLOW`) se expandem e desaparecem a partir da ponta da antena, defasados em meio período um do outro (para nunca haver um instante sem nenhum anel visível). O pulso ambar da ponta (identidade do robô) continua igual, os anéis são só um efeito adicional.
+
+**Alternativas consideradas:** trocar a cor da ponta da antena inteira para ciano enquanto o scanner estivesse ativo.
+
+**Motivo:** anéis concêntricos expandindo é a metáfora visual mais direta de "emitindo um sinal de radar" - o pedido explícito do desenvolvedor. Trocar a cor da ponta foi descartado por conflitar com o comentário já existente no código (`PLAYER_ANTENNA_TIP_COLOR`/`PLAYER_LENS_GLOW` são a "identidade" fixa do ECHO-7, independente de cor escolhida ou de estado) - o efeito precisava ser aditivo, não substituir a identidade visual já estabelecida. Cor ciano reaproveitada de `PLAYER_LENS_GLOW` em vez de uma nova constante, para o "sinal" parecer que sai do mesmo sensor que já é ciano (a lente), não de uma terceira fonte de cor sem relação com o resto do robô.
+
+### Retrato do menu (`MainMenu.tsx`) replicado, sem animação
+
+**Decisão:** o retrato SVG estático do menu ganhou o mesmo contorno nas pernas e os mesmos braços laterais (em SVG puro, sem `walkPhase`/`isScannerActive` - não há conceito de "andando" ou "scanner ligado" na tela de menu).
+
+**Motivo:** evitar que os dois desenhos do mesmo robô (menu vs. jogo) divirjam visualmente depois desta fase - o retrato do menu já existia como cópia deliberada da anatomia do robô do canvas (ver decisão da fase anterior, "Retrato vetorial do ECHO-7"), então manter os dois em sincronia é a continuação natural dessa decisão, não uma nova.
+
+**Verificação:** conferido visualmente via Playwright com zoom (deviceScaleFactor alto + `clip` na região do robô) - parado, andando (braço/perna em contrafase visíveis) e com o scanner ligado (anéis visíveis na antena, ausentes quando desligado). Typecheck, oxlint e os 123 testes automatizados sem alteração - mudança 100% de renderização.

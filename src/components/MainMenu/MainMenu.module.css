@@ -1,4 +1,5 @@
 .menu {
+  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -9,6 +10,93 @@
   color: #d8dbe2;
   font-family: ui-monospace, Consolas, monospace;
   letter-spacing: 0.08em;
+  overflow: hidden;
+}
+
+/*
+ * Scanlines sutis sobre todo o menu, ecoando o mesmo efeito de "computador
+ * de bordo" ja usado nos paineis de HUD (styles/hudPanel.module.css), para
+ * a tela inicial nao parecer um fundo solido isolado do resto da UI.
+ */
+.menu::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02) 0,
+    rgba(255, 255, 255, 0.02) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.portraitWrap {
+  position: relative;
+  width: 140px;
+  height: 168px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.portraitGlow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle,
+    rgba(94, 230, 200, 0.35) 0%,
+    transparent 70%
+  );
+  filter: blur(8px);
+  animation: portraitPulse 3s ease-in-out infinite;
+}
+
+.portrait {
+  position: relative;
+  width: 100px;
+  height: 120px;
+  animation: portraitFloat 4s ease-in-out infinite;
+}
+
+.lens {
+  filter: drop-shadow(0 0 6px rgba(94, 230, 200, 0.9));
+}
+
+.antennaTip {
+  animation: antennaPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes portraitFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes portraitPulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes antennaPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(255, 207, 122, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(255, 207, 122, 1));
+  }
 }
 
 .title {
@@ -33,4 +121,15 @@
 
 .button {
   composes: button from '@/styles/hudPanel.module.css';
+}
+
+.footer {
+  position: absolute;
+  bottom: 1rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  opacity: 0.4;
 }

@@ -43,6 +43,7 @@ export interface Translations {
     settings: string;
     howToPlay: string;
     noSaveTooltip: string;
+    developedBy: string;
   };
   mission: {
     objectiveLabel: string;

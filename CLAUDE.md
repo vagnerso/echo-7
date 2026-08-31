@@ -3,6 +3,7 @@
 Contexto completo do jogo: `PROMPT MESTRE — ECHO-7_ O EXPLORADOR.md` (visão, mecânicas, narrativa, restrições).
 Metodologia de desenvolvimento assistido por IA: `docs/AI_DEVELOPMENT.md`.
 Registro de decisões técnicas (o porquê de cada escolha): `docs/DECISIONS.md`.
+Roadmap de funcionalidades (o quê foi/será construído, fase a fase): seção "Roadmap" do `README.md`.
 
 ## Stack decidida (Fase 0, aprovada)
 
@@ -31,6 +32,7 @@ Além de terminar o jogo, o desenvolvedor está usando o ECHO-7 para evoluir seu
 - Priorize testes (Vitest) para lógica de jogo pura: movimento, colisão, energia, inventário, upgrades, puzzles, save/load — conforme já decidido na arquitetura.
 - Não adicione dependências novas sem justificar o porquê antes.
 - Toda decisão técnica não óbvia (escolha de lib, padrão de arquitetura, troca de abordagem) deve ser registrada em `docs/DECISIONS.md`, no formato já usado lá (contexto, decisão, alternativas consideradas, motivo). O projeto vai para o GitHub e deve ser didático para quem ler depois — a justificativa não pode existir só na conversa.
+- Toda nova funcionalidade concluída (não só as 10 fases do MVP, também qualquer feature pós-release) deve ser adicionada ao Roadmap na seção correspondente do `README.md` como item marcado (`- [x] ...`), na mesma tarefa em que é implementada — não deixar para depois. Se a funcionalidade não se encaixar num item existente do roadmap, criar uma nova seção/versão (padrão já usado: "Pós-release", "v2.0"). Isso é sobre *o quê* foi construído; `docs/DECISIONS.md` continua sendo sobre o *porquê* de escolhas técnicas não óbvias — features simples não precisam de entrada lá.
 - Sempre que identificar algo que deveria virar convenção/padrão do projeto (nomenclatura, estrutura de arquivos, aliases de import, convenção de commit, etc.), sugira proativamente e peça confirmação antes de adotar — não decida sozinho e não force um monte de convenções de uma vez sem necessidade real.
 
 ## Convenções de código

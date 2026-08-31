@@ -9,6 +9,7 @@ export const ptBR: Translations = {
     settings: 'AJUSTES',
     howToPlay: 'COMO JOGAR',
     noSaveTooltip: 'Nenhum progresso salvo ainda',
+    developedBy: 'Desenvolvido por',
   },
   mission: {
     objectiveLabel: 'OBJETIVO',

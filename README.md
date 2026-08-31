@@ -116,4 +116,19 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para o propósito de cada pas
 - [x] Internacionalização — Inglês (padrão) e Português do Brasil, dicionário customizado tipado, tela de Settings
 - [x] Customização — cor do robô (5 opções), preferências persistidas separadas do progresso de jogo
 
-A vertical slice está completa: dá para jogar do início (Landing Zone) até o final do primeiro arco narrativo (Signal Core), com progresso salvo automaticamente. Próximos passos possíveis: Região 4+ e continuação da história (o final termina com um gancho proposital), mais idiomas, sprites/arte de verdade (hoje 100% vetorial), controles mobile.
+**v2.0:**
+
+- [x] Fase A — Controles mobile (suporte a telas de toque)
+- [x] Fase B — Tutorial ("HOW TO PLAY" no menu principal)
+- [x] Fase C — Região opcional 4 ("Buried Cache")
+- [x] Tela inicial — retrato vetorial do ECHO-7 (reaproveitando a paleta de cor do robô), créditos do desenvolvedor no rodapé
+
+**v2.1:**
+
+- [x] Polish visual de mapas e itens — glow/contorno/brilho especular consistente em todo objeto do mundo (porta, coletável, switch, fragmento, scannable), faixas de risco nos tiles de hazard, ícone de cadeado nos tiles selados, bisel nas paredes, cor por tipo de item compartilhada entre o mundo e o inventário
+- [x] Correção: entrada secreta da Buried Cache não vazava mais um marcador visível no mapa antes do Deep Scanner instalado
+- [x] Anatomia do robô — pés com contorno e friso de esteira, braços laterais com balanço em contrafase ao caminhar, sinal de radar (anéis na antena) quando o scanner está ativo
+
+A vertical slice está completa: dá para jogar do início (Landing Zone) até o final do primeiro arco narrativo (Signal Core), com progresso salvo automaticamente. Próximos passos possíveis: continuação da história (o final termina com um gancho proposital), mais idiomas, sprites/arte de verdade (hoje 100% vetorial).
+
+> Este roadmap é o registro histórico de fases já concluídas. Toda nova funcionalidade deve ser adicionada aqui como um novo item (ou uma nova seção de versão) assim que for concluída — ver regra correspondente no `CLAUDE.md`.

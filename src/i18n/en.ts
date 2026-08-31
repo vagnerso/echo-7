@@ -9,6 +9,7 @@ export const en: Translations = {
     settings: 'SETTINGS',
     howToPlay: 'HOW TO PLAY',
     noSaveTooltip: 'No saved progress yet',
+    developedBy: 'Developed by',
   },
   mission: {
     objectiveLabel: 'OBJECTIVE',

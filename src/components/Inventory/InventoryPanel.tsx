@@ -1,4 +1,7 @@
+import type { CSSProperties } from 'react';
+
 import { MEMORY_FRAGMENTS } from '@/content/fragments';
+import { FRAGMENT_COLOR, ITEM_TYPE_COLORS } from '@/content/itemColors';
 import { UPGRADES } from '@/content/upgrades';
 import { useTranslations } from '@/hooks/useTranslations';
 import { useGameStore } from '@/state/gameStore';
@@ -52,7 +55,17 @@ export function InventoryPanel() {
           <ul className={styles.list}>
             {inventory.map((item) => (
               <li key={item.id} className={styles.row}>
-                <span>{t.items[item.id] ?? item.id}</span>
+                <span>
+                  <span
+                    className={styles.itemIcon}
+                    style={
+                      {
+                        '--icon-color': ITEM_TYPE_COLORS[item.type],
+                      } as CSSProperties
+                    }
+                  />
+                  {t.items[item.id] ?? item.id}
+                </span>
                 <span>x{item.quantity}</span>
               </li>
             ))}
@@ -65,14 +78,26 @@ export function InventoryPanel() {
 
         <p className={styles.sectionTitle}>{t.inventory.upgradesTitle}</p>
         <ul className={styles.list}>
-          {UPGRADES.map((upgrade) => (
-            <li key={upgrade.id} className={styles.row}>
-              <span>
-                [{installedUpgrades.has(upgrade.id) ? 'x' : ' '}]{' '}
-                {t.upgrades[upgrade.id]?.name ?? upgrade.id}
-              </span>
-            </li>
-          ))}
+          {UPGRADES.map((upgrade) => {
+            const isInstalled = installedUpgrades.has(upgrade.id);
+            return (
+              <li key={upgrade.id} className={styles.row}>
+                <span>
+                  <span
+                    className={styles.itemIcon}
+                    data-dim={isInstalled ? undefined : ''}
+                    style={
+                      {
+                        '--icon-color': ITEM_TYPE_COLORS.upgrade,
+                      } as CSSProperties
+                    }
+                  />
+                  [{isInstalled ? 'x' : ' '}]{' '}
+                  {t.upgrades[upgrade.id]?.name ?? upgrade.id}
+                </span>
+              </li>
+            );
+          })}
         </ul>
 
         <p className={styles.sectionTitle}>
@@ -85,6 +110,10 @@ export function InventoryPanel() {
             {collected.map((fragment) => (
               <li key={fragment.id} className={styles.fragmentEntry}>
                 <p className={styles.fragmentText}>
+                  <span
+                    className={styles.fragmentIcon}
+                    style={{ '--icon-color': FRAGMENT_COLOR } as CSSProperties}
+                  />
                   &quot;{t.fragments[fragment.id] ?? ''}&quot;
                 </p>
                 <p className={styles.fragmentMeta}>
