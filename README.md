@@ -163,3 +163,7 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para o propósito de cada pas
 A vertical slice do MVP está completa (Landing Zone → Ancient Ruins → Signal Core), e o gancho do final agora tem uma continuação jogável inteira (Thousand Spires + The Buried Chord), com fechamento próprio, fechando o fio do Kade. Próximos passos possíveis: mais idiomas, sprites/arte de verdade (hoje 100% vetorial), ou um novo gancho a partir daqui.
 
 > Este roadmap é o registro histórico de fases já concluídas. Toda nova funcionalidade deve ser adicionada aqui como um novo item (ou uma nova seção de versão) assim que for concluída — ver regra correspondente no `CLAUDE.md`.
+
+## 📄 License
+
+Distribuído sob a licença [MIT](LICENSE) — sinta-se à vontade para clonar, dar fork e usar como referência.

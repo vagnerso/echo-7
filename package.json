@@ -1,8 +1,16 @@
 {
   "name": "echo-7",
+  "description": "Jogo de exploração sci-fi para navegador, sem combate e sem diálogo — reconstrua o que aconteceu com uma expedição desaparecida escaneando estruturas, resolvendo puzzles e recuperando fragmentos de memória.",
   "private": true,
-  "version": "0.0.0",
+  "version": "3.0.0",
   "type": "module",
+  "author": "Vagner Oliveira",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vagnerso/echo-7.git"
+  },
+  "homepage": "https://vagnerso.github.io/echo-7/",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
