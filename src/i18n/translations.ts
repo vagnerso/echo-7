@@ -16,7 +16,8 @@ export type ObjectiveKey =
   | 'investigateAncientRuins'
   | 'activateSignalCore'
   | 'findWayToSignalCore'
-  | 'approachCore';
+  | 'approachCore'
+  | 'exploreThousandSpires';
 
 // Chaves das opcoes de cor do robo (Settings). Os valores de cor em si
 // (hex) nao moram aqui - vem de content/robotColors.ts, que nao varia por
@@ -82,6 +83,15 @@ export interface Translations {
     searchContinues: string;
     toBeContinued: string;
     returnToMenu: string;
+    continueExploring: string;
+  };
+  epilogueEnding: {
+    sequenceComplete: string;
+    chordResolves: string;
+    unitRecognized: string;
+    waitingForItself: string;
+    farewell: string;
+    seeYouOutThere: string;
   };
   controls: {
     title: string;

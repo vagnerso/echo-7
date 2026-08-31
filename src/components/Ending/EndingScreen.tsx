@@ -4,9 +4,13 @@ import styles from './EndingScreen.module.css';
 
 export interface EndingScreenProps {
   onReturnToMenu: () => void;
+  onContinueExploring: () => void;
 }
 
-export function EndingScreen({ onReturnToMenu }: EndingScreenProps) {
+export function EndingScreen({
+  onReturnToMenu,
+  onContinueExploring,
+}: EndingScreenProps) {
   const t = useTranslations();
 
   return (
@@ -27,6 +31,13 @@ export function EndingScreen({ onReturnToMenu }: EndingScreenProps) {
 
       <p className={styles.toBeContinued}>{t.ending.toBeContinued}</p>
 
+      <button
+        type="button"
+        className={styles.button}
+        onClick={onContinueExploring}
+      >
+        {t.ending.continueExploring}
+      </button>
       <button type="button" className={styles.button} onClick={onReturnToMenu}>
         {t.ending.returnToMenu}
       </button>

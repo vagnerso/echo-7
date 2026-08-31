@@ -1,14 +1,14 @@
 # ECHO-7 — The Last Signal
 
-Jogo de exploração sci-fi para navegador. Você controla ECHO-7, um robô explorador enviado para investigar um planeta alienígena aparentemente abandonado — explorando, escaneando e reconstruindo aos poucos o mistério por trás de uma transmissão misteriosa.
+Jogo de exploração sci-fi para navegador, sem combate e sem diálogo. Você controla o ECHO-7, um robô explorador enviado sozinho a um planeta que se acreditava abandonado, para investigar uma transmissão que não deveria existir. A história não é contada, é reconstruída: escaneando estruturas antigas, recuperando fragmentos de memória corrompidos e decifrando o que aconteceu com uma expedição humana anterior que desapareceu sem deixar rastro. Upgrades abrem caminhos que antes eram impossíveis (o Deep Scanner revela o que estava escondido; as Magnetic Boots atravessam terreno hostil), puzzles guardam o que foi selado de propósito, e cada descoberta aproxima o ECHO-7 de uma resposta que ele não esperava encontrar.
 
 ## 🎮 Play
 
 **[vagnerso.github.io/echo-7](https://vagnerso.github.io/echo-7/)**
 
-Roda direto no navegador, sem instalação. Requer teclado (sem suporte a touch/mobile nesta versão). Disponível em **Inglês** (padrão) e **Português do Brasil**, com cor do robô customizável — ambos em Settings, no menu principal.
+Roda direto no navegador, sem instalação. Suporta teclado e telas de toque (celular/tablet — D-pad e botões aparecem automaticamente). Disponível em **Inglês** (padrão) e **Português do Brasil**, com cor do robô customizável — ambos em Settings, no menu principal.
 
-**Controles:** `WASD`/setas para mover · `E` interagir · `Q` scanner · `I` inventário/upgrades/fragmentos. Também exibidos na tela durante o jogo.
+**Controles:** `WASD`/setas para mover · `E` interagir · `Q` scanner · `I` inventário/upgrades/fragmentos. Também exibidos na tela durante o jogo (e como D-pad/botões em dispositivos touch).
 
 ## 📸 Screenshots
 
@@ -19,6 +19,14 @@ Roda direto no navegador, sem instalação. Requer teclado (sem suporte a touch/
 | Scanner | Inventário |
 |---|---|
 | ![Scanner detectando um objeto](docs/screenshots/scanner-detection.png) | ![Painel de inventário](docs/screenshots/inventory-panel.png) |
+
+| Thousand Spires (epílogo) | The Buried Chord (escuridão + pulso do radar) |
+|---|---|
+| ![Thousand Spires, o epílogo pós-final](docs/screenshots/thousand-spires.png) | ![Pulso do scanner revelando um raio ao redor do robô em The Buried Chord](docs/screenshots/buried-chord.png) |
+
+| Conclusão do epílogo |
+|---|
+| ![Tela de conclusão do epílogo, com o retrato do ECHO-7](docs/screenshots/epilogue-complete.png) |
 
 ## 🧠 AI-Assisted Development
 
@@ -73,7 +81,7 @@ npm run format     # formata o código (Prettier)
 
 ## 🧪 Testing
 
-Testes ficam ao lado do código testado (`arquivo.ts` + `arquivo.test.ts`), priorizando lógica de jogo pura (`engine/`, `systems/`, `state/`, `save/`) — 118 testes automatizados no total. Ver critérios de teste em [`docs/DECISIONS.md`](docs/DECISIONS.md).
+Testes ficam ao lado do código testado (`arquivo.ts` + `arquivo.test.ts`), priorizando lógica de jogo pura (`engine/`, `systems/`, `state/`, `save/`) — 123 testes automatizados no total. Ver critérios de teste em [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 ## 📁 Project Structure
 
@@ -131,6 +139,14 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para o propósito de cada pas
 - [x] Correção mobile: câmera renderizava o mundo em 1/`devicePixelRatio` do tamanho devido em telas de alta densidade (celular), fazendo tudo parecer mais "longe" que no desktop
 - [x] Correção mobile: toque longo num botão do D-pad podia selecionar texto de outro painel da tela (seleção de texto desabilitada globalmente - o jogo não tem nenhum campo de texto)
 
-A vertical slice está completa: dá para jogar do início (Landing Zone) até o final do primeiro arco narrativo (Signal Core), com progresso salvo automaticamente. Próximos passos possíveis: continuação da história (o final termina com um gancho proposital), mais idiomas, sprites/arte de verdade (hoje 100% vetorial).
+**v3.0 — Thousand Spires:**
+
+- [x] Epílogo pós-final: a tela de final ganhou a opção "continue exploring", levando a uma 5ª região nova (não é preciso recomeçar o jogo para ver)
+- [x] Thousand Spires (`region-5`) — campo de torres de transmissão antigas; o puzzle de sequência de sempre ganhou 5 nós, cada um tocando uma nota (escala pentatônica) — resolver na ordem certa compõe a frase completa
+- [x] 4 fragmentos de memória novos, amarrando o fio solto do Kade (Buried Cache, v2.0) ao gancho do final: transmissões da própria rede alienígena e registros restritos da unidade ECHO-7 sobre si mesma
+- [x] The Buried Chord (`region-6`) — área secreta dentro de Thousand Spires (exige o Deep Scanner), em escuridão quase total: o pulso do radar da antena (v2.1, antes só cosmético) ganhou função real, revelando um raio ao redor do robô por alguns segundos a cada scan. Labirinto com duas passagens (tiles de hazard, em linhas diferentes) exigindo as Magnetic Boots, terminando numa câmara com um puzzle próprio de 4 nós — resolvido quase às cegas, só com os pulsos de luz — que libera os 2 fragmentos finais
+- [x] Tela de conclusão do epílogo — coletar os dois fragmentos finais de The Buried Chord fecha o arco com uma tela própria (com o retrato do ECHO-7 e um tom de despedida), independente do final original do MVP
+
+A vertical slice do MVP está completa (Landing Zone → Ancient Ruins → Signal Core), e o gancho do final agora tem uma continuação jogável inteira (Thousand Spires + The Buried Chord), com fechamento próprio, fechando o fio do Kade. Próximos passos possíveis: mais idiomas, sprites/arte de verdade (hoje 100% vetorial), ou um novo gancho a partir daqui.
 
 > Este roadmap é o registro histórico de fases já concluídas. Toda nova funcionalidade deve ser adicionada aqui como um novo item (ou uma nova seção de versão) assim que for concluída — ver regra correspondente no `CLAUDE.md`.

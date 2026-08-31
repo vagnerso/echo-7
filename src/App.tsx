@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { ControlsHint } from '@/components/Controls/ControlsHint';
 import { EndingScreen } from '@/components/Ending/EndingScreen';
+import { EpilogueCompleteScreen } from '@/components/Epilogue/EpilogueCompleteScreen';
 import { GameCanvas } from '@/components/GameCanvas/GameCanvas';
 import { InventoryPanel } from '@/components/Inventory/InventoryPanel';
 import { MainMenu } from '@/components/MainMenu/MainMenu';
@@ -10,6 +11,8 @@ import { MissionHUD } from '@/components/Mission/MissionHUD';
 import { ScannerOverlay } from '@/components/Scanner/ScannerOverlay';
 import { SettingsScreen } from '@/components/Settings/SettingsScreen';
 import { TutorialScreen } from '@/components/Tutorial/TutorialScreen';
+import { THOUSAND_SPIRES } from '@/content/regions';
+import { useShouldShowEndingScreen } from '@/hooks/useShouldShowEndingScreen';
 import { hasSaveGame, loadGame, saveGame } from '@/save/saveGame';
 import { saveSettings } from '@/save/settingsStorage';
 import { useGameStore } from '@/state/gameStore';
@@ -22,7 +25,10 @@ type Screen = 'menu' | 'game' | 'settings' | 'tutorial';
 
 function App() {
   const [screen, setScreen] = useState<Screen>('menu');
-  const hasReachedEnding = useGameStore((state) => state.hasReachedEnding);
+  const showEndingScreen = useShouldShowEndingScreen();
+  const hasCompletedEpilogue = useGameStore(
+    (state) => state.hasCompletedEpilogue,
+  );
 
   const handleNewGame = () => {
     useGameStore.getState().resetGame();
@@ -38,6 +44,16 @@ function App() {
     loadGame();
     useUiStore.getState().resetUi();
     setScreen('game');
+  };
+
+  // Epilogo pos-final (v3.0, ver docs/DECISIONS.md) - nao existe nenhum
+  // exit de outra regiao levando a Thousand Spires, entao entrar nela e
+  // sempre por aqui, nao pelo fluxo normal de transicao do GameCanvas.
+  const handleContinueExploring = () => {
+    useGameStore.getState().setCurrentRegion(THOUSAND_SPIRES.id);
+    useGameStore.getState().setObjective('exploreThousandSpires');
+    useUiStore.getState().resetUi();
+    saveGame();
   };
 
   useEffect(() => {
@@ -64,8 +80,13 @@ function App() {
         <TutorialScreen onBack={() => setScreen('menu')} />
       ) : screen === 'settings' ? (
         <SettingsScreen onBack={() => setScreen('menu')} />
-      ) : hasReachedEnding ? (
-        <EndingScreen onReturnToMenu={() => setScreen('menu')} />
+      ) : showEndingScreen ? (
+        <EndingScreen
+          onReturnToMenu={() => setScreen('menu')}
+          onContinueExploring={handleContinueExploring}
+        />
+      ) : hasCompletedEpilogue ? (
+        <EpilogueCompleteScreen onReturnToMenu={() => setScreen('menu')} />
       ) : (
         <>
           <GameCanvas />

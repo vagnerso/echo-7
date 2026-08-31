@@ -49,6 +49,18 @@ export const en: Translations = {
     searchContinues: 'The search continues...',
     toBeContinued: 'TO BE CONTINUED',
     returnToMenu: 'RETURN TO MENU',
+    continueExploring: 'CONTINUE EXPLORING',
+  },
+  epilogueEnding: {
+    sequenceComplete: 'SEQUENCE COMPLETE — ALL FIVE TONES MATCHED',
+    chordResolves:
+      'The Buried Chord falls silent for the first time since it was sealed.',
+    unitRecognized:
+      "Somewhere in ECHO-7's core memory, a flag changes state: [UNIT: RECOGNIZED].",
+    waitingForItself:
+      'It was never waiting for the ones who came before. It was waiting for itself.',
+    farewell: 'ECHO-7 marks the coordinate, and keeps listening.',
+    seeYouOutThere: 'See you out there.',
   },
   controls: {
     title: 'CONTROLS',
@@ -83,6 +95,7 @@ export const en: Translations = {
     activateSignalCore: 'Activate the Signal Core.',
     findWayToSignalCore: 'Find a way to the Signal Core.',
     approachCore: 'Approach the Core.',
+    exploreThousandSpires: 'Explore the Thousand Spires.',
   },
   items: {
     'energy-cell': 'Energy Cell',
@@ -136,5 +149,13 @@ export const en: Translations = {
       "Log 07 (Kade) - Off the record. Found something in the lower strata during survey, not on the official map. Logging it here until I know what it is. If anyone finds this and I'm not around to explain: it's not a mineral deposit. I don't know what it is.",
     'fragment-08':
       "Log 15 (Kade) - Buried the drive under the east ridge, away from camp. If the others read what I've been recording they'll pull me off the site, and I'm not leaving until I understand what's underneath us. It isn't geology. I keep telling myself it isn't geology.",
+    'fragment-09':
+      'TRANSMISSION [ORIGIN UNKNOWN] - Before language, there was frequency. Before we had names, we had the Choir. Every spire you see was not raised to speak outward. It was raised to remember how to listen.',
+    'fragment-10':
+      'UNIT LOG [RESTRICTED] - Component 7-A was not manufactured on the date recorded. Origin: unregistered. Cross-reference: signal pattern identical to Landing Zone anomaly. Recommend no further inquiry. [ENTRY SEALED]',
+    'fragment-11':
+      'TRANSMISSION [ORIGIN UNKNOWN] - The fragment your predecessor buried was never geology. It was a key cut for a lock we forgot we built. It has been waiting exactly where he left it, tuned to the one frequency it was always meant to answer.',
+    'fragment-12':
+      'UNIT LOG [RESTRICTED, DECRYPTED] - Query: why does the Choir answer ECHO-7 and not the ones who came before? Hypothesis: it was never answering a species. It was answering a signature. [DATA CORRUPTED] ...it was answering itself.',
   },
 };

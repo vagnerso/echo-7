@@ -45,4 +45,39 @@ export const MEMORY_FRAGMENTS: readonly MemoryFragment[] = [
     regionId: 'region-4',
     corruption: 20,
   },
+  // Thousand Spires (region-5): epilogo pos-final, alcancado pelo link
+  // "continuar explorando" da EndingScreen - ver docs/DECISIONS.md (v3.0).
+  // Mudanca de registro de proposito: nao sao mais logs de campo humanos
+  // (a expedicao da Fase 8 ja terminou) - sao transmissoes da propria rede
+  // alienigena e registros restritos da unidade ECHO-7 sobre si mesma.
+  {
+    id: 'fragment-09',
+    regionId: 'region-5',
+    corruption: 44,
+  },
+  {
+    id: 'fragment-10',
+    regionId: 'region-5',
+    corruption: 67,
+  },
+  // The Buried Chord (region-6): area secreta dentro de Thousand Spires, so
+  // acessivel com o Deep Scanner e com os dois fragmentos exigindo
+  // THOUSAND_SPIRES_PUZZLE resolvido. Fecha o fio do Kade (fragment-07/08,
+  // Buried Cache) - ver docs/DECISIONS.md.
+  {
+    id: 'fragment-11',
+    regionId: 'region-6',
+    corruption: 28,
+  },
+  {
+    id: 'fragment-12',
+    regionId: 'region-6',
+    corruption: 51,
+  },
 ];
+
+// Exportado (nao so usado aqui dentro) porque GameCanvas.tsx precisa saber
+// quando os dois foram coletados, pra disparar a conclusao do epilogo
+// (useGameStore.getState().completeEpilogue()) - em vez de checar as duas
+// strings soltas la.
+export const BURIED_CHORD_FRAGMENT_IDS = ['fragment-11', 'fragment-12'] as const;

@@ -1,3 +1,7 @@
+import {
+  BURIED_CHORD_PUZZLE_ID,
+  THOUSAND_SPIRES_PUZZLE_ID,
+} from '@/content/puzzles';
 import type { Region, TileType } from '@/world/region';
 
 const TILE_SIZE = 64;
@@ -14,6 +18,10 @@ const SIGNAL_TILE_SIZE = 64;
 // Mesmo motivo: a entrada oculta na Landing Zone (buried-cache-entrance)
 // precisa disso antes da regiao Buried Cache (region-4) ser definida.
 const CACHE_TILE_SIZE = 64;
+
+// Mesmo motivo, para a entrada oculta em Thousand Spires
+// (buried-chord-entrance) e The Buried Chord (region-6).
+const CHORD_TILE_SIZE = 64;
 
 function buildLandingZoneTiles(): TileType[][] {
   const tiles: TileType[][] = [];
@@ -422,9 +430,214 @@ export const BURIED_CACHE: Region = {
   ],
 };
 
+const SPIRES_COLS = 16;
+const SPIRES_ROWS = 12;
+const SPIRES_TILE_SIZE = 64;
+
+function buildThousandSpiresTiles(): TileType[][] {
+  const tiles: TileType[][] = [];
+
+  for (let row = 0; row < SPIRES_ROWS; row += 1) {
+    const line: TileType[] = [];
+    for (let col = 0; col < SPIRES_COLS; col += 1) {
+      const isBorder =
+        row === 0 ||
+        row === SPIRES_ROWS - 1 ||
+        col === 0 ||
+        col === SPIRES_COLS - 1;
+      line.push(isBorder ? 'wall' : 'floor');
+    }
+    tiles.push(line);
+  }
+
+  return tiles;
+}
+
+// v3.0 (ver docs/DECISIONS.md) - epilogo pos-final, alcancado pelo link
+// "continuar explorando" da EndingScreen (App.tsx), nunca por um exit de
+// outra regiao - e a primeira porta de entrada do epilogo. As 5 torres
+// reaproveitam o puzzle 'sequence' de sempre (THOUSAND_SPIRES_PUZZLE,
+// content/puzzles.ts), com um no a mais que o costume porque cada torre
+// toca uma nota (ver playSpireToneSound em engine/audio.ts) - 5 nos = 5
+// notas da escala. A entrada de The Buried Chord (Fase C) fica aqui dentro,
+// no mesmo padrao da buried-cache-entrance (Landing Zone): scannable +
+// interactable + requiresDeepScanner + exit, tudo no mesmo objeto.
+export const THOUSAND_SPIRES: Region = {
+  id: 'region-5',
+  name: 'Thousand Spires',
+  tileSize: SPIRES_TILE_SIZE,
+  tiles: buildThousandSpiresTiles(),
+  objects: [
+    {
+      id: 'spire-node-1',
+      interactable: true,
+      position: { x: 8 * SPIRES_TILE_SIZE, y: 2 * SPIRES_TILE_SIZE },
+      puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-1' },
+    },
+    {
+      id: 'spire-node-2',
+      interactable: true,
+      position: { x: 13 * SPIRES_TILE_SIZE, y: 5 * SPIRES_TILE_SIZE },
+      puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-2' },
+    },
+    {
+      id: 'spire-node-3',
+      interactable: true,
+      position: { x: 11 * SPIRES_TILE_SIZE, y: 9 * SPIRES_TILE_SIZE },
+      puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-3' },
+    },
+    {
+      id: 'spire-node-4',
+      interactable: true,
+      position: { x: 5 * SPIRES_TILE_SIZE, y: 9 * SPIRES_TILE_SIZE },
+      puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-4' },
+    },
+    {
+      id: 'spire-node-5',
+      interactable: true,
+      position: { x: 3 * SPIRES_TILE_SIZE, y: 5 * SPIRES_TILE_SIZE },
+      puzzleSwitch: { puzzleId: THOUSAND_SPIRES_PUZZLE_ID, switchId: 'node-5' },
+    },
+    {
+      id: 'fragment-pickup-09',
+      interactable: true,
+      position: { x: 8 * SPIRES_TILE_SIZE, y: 6 * SPIRES_TILE_SIZE },
+      memoryFragment: 'fragment-09',
+    },
+    {
+      id: 'fragment-pickup-10',
+      interactable: true,
+      position: { x: 13 * SPIRES_TILE_SIZE, y: 9 * SPIRES_TILE_SIZE },
+      memoryFragment: 'fragment-10',
+    },
+    {
+      // requiresPuzzleSolved (alem do requiresDeepScanner) e o proposito: a
+      // porta fica visivel (escaneavel) mas apagada/inerte (renderInteractables
+      // desenha a 35% de opacidade, mesmo tratamento de fragmentPickup em
+      // requiresPuzzleSolved) ate as 5 torres serem resolvidas na ordem certa
+      // - resolver o puzzle e o que faz essa porta "acender" e responder a E.
+      id: 'buried-chord-entrance',
+      scannable: true,
+      interactable: true,
+      requiresDeepScanner: true,
+      requiresPuzzleSolved: THOUSAND_SPIRES_PUZZLE_ID,
+      position: { x: 3 * SPIRES_TILE_SIZE, y: 9 * SPIRES_TILE_SIZE },
+      exit: {
+        toRegionId: 'region-6',
+        spawnPosition: { x: 2 * CHORD_TILE_SIZE, y: 6 * CHORD_TILE_SIZE },
+      },
+    },
+  ],
+};
+
+const CHORD_COLS = 16;
+const CHORD_ROWS = 10;
+
+function buildBuriedChordTiles(): TileType[][] {
+  const tiles: TileType[][] = [];
+
+  for (let row = 0; row < CHORD_ROWS; row += 1) {
+    const line: TileType[] = [];
+    for (let col = 0; col < CHORD_COLS; col += 1) {
+      const isBorder =
+        row === 0 ||
+        row === CHORD_ROWS - 1 ||
+        col === 0 ||
+        col === CHORD_COLS - 1;
+      line.push(isBorder ? 'wall' : 'floor');
+    }
+    tiles.push(line);
+  }
+
+  // Duas divisorias (nao uma) - a entrada (col 1-4), o corredor do meio
+  // (col 6-9) e a camara final com o puzzle (col 11-14) so se conectam pelos
+  // tiles hazard das colunas 5 e 10, em linhas diferentes uma da outra (o
+  // caminho ziguezagueia, nao e uma linha reta) - atravessar as duas exige
+  // Magnetic Boots. Sala maior e labirintica de proposito (pedido do
+  // desenvolvedor: "sala pequena, poderia ser maior, com uma surpresa/desafio
+  // final") - o desafio final de verdade e o puzzle na camara depois da
+  // segunda passagem (ver BURIED_CHORD_PUZZLE), que precisa ser resolvido
+  // quase as cegas, na escuridao quase total desta regiao (ver
+  // GameCanvas.tsx/systems/darknessSystem.ts).
+  for (let row = 1; row < CHORD_ROWS - 1; row += 1) {
+    tiles[row][5] = row === 4 ? 'hazard' : 'wall';
+    tiles[row][10] = row === 6 ? 'hazard' : 'wall';
+  }
+
+  return tiles;
+}
+
+// v3.0 (ver docs/DECISIONS.md) - area secreta dentro de Thousand Spires, so
+// alcancavel via buried-chord-entrance (region-5), que exige o Deep Scanner
+// - mesmo padrao da Buried Cache dentro da Landing Zone. Tem puzzle proprio
+// (BURIED_CHORD_PUZZLE, camara final) alem da escuridao quase total
+// (renderizada em GameCanvas.tsx, logica em systems/darknessSystem.ts) - o
+// pulso do scanner (Q) revela um raio maior por um tempo, desvanecendo de
+// volta ao raio ambiente minimo, entao resolver o puzzle exige memorizar a
+// posicao dos nos entre pulsos. Os dois fragmentos exigem
+// BURIED_CHORD_PUZZLE resolvido (o puzzle desta camara, nao mais o de
+// Thousand Spires - esse ja precisou ser resolvido so pra entrar aqui).
+export const BURIED_CHORD: Region = {
+  id: 'region-6',
+  name: 'The Buried Chord',
+  tileSize: CHORD_TILE_SIZE,
+  tiles: buildBuriedChordTiles(),
+  objects: [
+    {
+      id: 'exit-to-thousand-spires-from-chord',
+      interactable: true,
+      position: { x: 2 * CHORD_TILE_SIZE, y: 4 * CHORD_TILE_SIZE },
+      exit: {
+        toRegionId: 'region-5',
+        spawnPosition: { x: 3 * SPIRES_TILE_SIZE, y: 10 * SPIRES_TILE_SIZE },
+      },
+    },
+    {
+      id: 'chord-node-1',
+      interactable: true,
+      position: { x: 12 * CHORD_TILE_SIZE, y: 2 * CHORD_TILE_SIZE },
+      puzzleSwitch: { puzzleId: BURIED_CHORD_PUZZLE_ID, switchId: 'node-1' },
+    },
+    {
+      id: 'chord-node-2',
+      interactable: true,
+      position: { x: 14 * CHORD_TILE_SIZE, y: 3 * CHORD_TILE_SIZE },
+      puzzleSwitch: { puzzleId: BURIED_CHORD_PUZZLE_ID, switchId: 'node-2' },
+    },
+    {
+      id: 'chord-node-3',
+      interactable: true,
+      position: { x: 13 * CHORD_TILE_SIZE, y: 6 * CHORD_TILE_SIZE },
+      puzzleSwitch: { puzzleId: BURIED_CHORD_PUZZLE_ID, switchId: 'node-3' },
+    },
+    {
+      id: 'chord-node-4',
+      interactable: true,
+      position: { x: 11 * CHORD_TILE_SIZE, y: 7 * CHORD_TILE_SIZE },
+      puzzleSwitch: { puzzleId: BURIED_CHORD_PUZZLE_ID, switchId: 'node-4' },
+    },
+    {
+      id: 'fragment-pickup-11',
+      interactable: true,
+      requiresPuzzleSolved: BURIED_CHORD_PUZZLE_ID,
+      position: { x: 12 * CHORD_TILE_SIZE, y: 5 * CHORD_TILE_SIZE },
+      memoryFragment: 'fragment-11',
+    },
+    {
+      id: 'fragment-pickup-12',
+      interactable: true,
+      requiresPuzzleSolved: BURIED_CHORD_PUZZLE_ID,
+      position: { x: 14 * CHORD_TILE_SIZE, y: 7 * CHORD_TILE_SIZE },
+      memoryFragment: 'fragment-12',
+    },
+  ],
+};
+
 export const REGIONS: Record<string, Region> = {
   [LANDING_ZONE.id]: LANDING_ZONE,
   [ANCIENT_RUINS.id]: ANCIENT_RUINS,
   [SIGNAL_CORE.id]: SIGNAL_CORE,
   [BURIED_CACHE.id]: BURIED_CACHE,
+  [THOUSAND_SPIRES.id]: THOUSAND_SPIRES,
+  [BURIED_CHORD.id]: BURIED_CHORD,
 };

@@ -21,6 +21,8 @@ interface GameProgress {
   // o texto no idioma atual via t.objectives[currentObjective].
   currentObjective: ObjectiveKey;
   hasReachedEnding: boolean;
+  /** v3.0 - true depois que os dois fragmentos de The Buried Chord (region-6) sao coletados. Independente de hasReachedEnding (o final original nao muda). */
+  hasCompletedEpilogue: boolean;
 }
 
 function createInitialProgress(): GameProgress {
@@ -34,6 +36,7 @@ function createInitialProgress(): GameProgress {
     collectedFragments: new Set<string>(),
     currentObjective: 'exploreLandingZone',
     hasReachedEnding: false,
+    hasCompletedEpilogue: false,
   };
 }
 
@@ -57,6 +60,8 @@ interface GameState extends GameProgress {
   setObjective: (key: ObjectiveKey) => void;
 
   triggerEnding: () => void;
+
+  completeEpilogue: () => void;
 
   /** Restaura todo o progresso para o estado inicial - usado ao comecar um NEW GAME (Fase 8), ja que ainda nao ha save/load. */
   resetGame: () => void;
@@ -154,6 +159,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   setObjective: (key) => set({ currentObjective: key }),
 
   triggerEnding: () => set({ hasReachedEnding: true }),
+
+  completeEpilogue: () => set({ hasCompletedEpilogue: true }),
 
   resetGame: () => set(createInitialProgress()),
 }));

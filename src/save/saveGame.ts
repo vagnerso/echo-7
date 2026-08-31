@@ -29,6 +29,7 @@ interface SaveData {
   // MissionHUD tem fallback para chave desconhecida (ver hooks/useTranslations).
   currentObjective: string;
   hasReachedEnding: boolean;
+  hasCompletedEpilogue: boolean;
 }
 
 function getDefaultStorage(): StorageLike | null {
@@ -58,6 +59,7 @@ export function saveGame(
     collectedFragments: Array.from(state.collectedFragments),
     currentObjective: state.currentObjective,
     hasReachedEnding: state.hasReachedEnding,
+    hasCompletedEpilogue: state.hasCompletedEpilogue,
   };
 
   storage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -102,6 +104,9 @@ export function loadGame(
     // fallback fica no render (useTranslations), nao aqui.
     currentObjective: data.currentObjective as ObjectiveKey,
     hasReachedEnding: data.hasReachedEnding,
+    // ?? false: um save de antes desta chave existir (v3.0) nao tem esse
+    // campo no JSON - undefined deve significar "ainda nao completou".
+    hasCompletedEpilogue: data.hasCompletedEpilogue ?? false,
   });
 
   return true;

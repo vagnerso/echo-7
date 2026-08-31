@@ -51,6 +51,18 @@ export const ptBR: Translations = {
     searchContinues: 'A busca continua...',
     toBeContinued: 'CONTINUA',
     returnToMenu: 'VOLTAR AO MENU',
+    continueExploring: 'CONTINUAR EXPLORANDO',
+  },
+  epilogueEnding: {
+    sequenceComplete: 'SEQUÊNCIA COMPLETA — AS CINCO NOTAS COINCIDIRAM',
+    chordResolves:
+      'O Buried Chord fica em silêncio pela primeira vez desde que foi selado.',
+    unitRecognized:
+      'Em algum lugar da memória central do ECHO-7, uma flag muda de estado: [UNIDADE: RECONHECIDA].',
+    waitingForItself:
+      'Nunca esteve esperando pelos que vieram antes. Estava esperando por si mesmo.',
+    farewell: 'O ECHO-7 registra a coordenada e continua escutando.',
+    seeYouOutThere: 'Até breve, explorador.',
   },
   controls: {
     title: 'COMANDOS',
@@ -85,6 +97,7 @@ export const ptBR: Translations = {
     activateSignalCore: 'Ative o Núcleo de Sinal.',
     findWayToSignalCore: 'Encontre um caminho até o Núcleo de Sinal.',
     approachCore: 'Aproxime-se do Núcleo.',
+    exploreThousandSpires: 'Explore as Mil Torres.',
   },
   items: {
     'energy-cell': 'Célula de Energia',
@@ -138,5 +151,13 @@ export const ptBR: Translations = {
       'Log 07 (Kade) - Extraoficial. Encontrei algo nos estratos inferiores durante o levantamento, fora do mapa oficial. Estou registrando aqui até saber o que é. Se alguém encontrar isto e eu não estiver por perto para explicar: não é um depósito mineral. Eu não sei o que é.',
     'fragment-08':
       'Log 15 (Kade) - Enterrei o drive sob a crista leste, longe do acampamento. Se os outros lerem o que venho registrando, vão me tirar do local, e eu não vou embora até entender o que há debaixo de nós. Não é geologia. Eu fico repetindo pra mim mesmo que não é geologia.',
+    'fragment-09':
+      'TRANSMISSÃO [ORIGEM DESCONHECIDA] - Antes da linguagem, havia frequência. Antes de termos nomes, tínhamos o Coro. Cada torre que você vê não foi erguida para falar para fora. Foi erguida para lembrar como se escuta.',
+    'fragment-10':
+      'REGISTRO DA UNIDADE [RESTRITO] - O Componente 7-A não foi fabricado na data registrada. Origem: não catalogada. Referência cruzada: padrão de sinal idêntico à anomalia da Landing Zone. Recomenda-se não investigar mais. [ENTRADA SELADA]',
+    'fragment-11':
+      'TRANSMISSÃO [ORIGEM DESCONHECIDA] - O fragmento que seu predecessor enterrou nunca foi geologia. Era uma chave talhada para uma fechadura que esquecemos de ter construído. Esperou exatamente onde ele a deixou, sintonizada na única frequência que sempre esteve destinada a responder.',
+    'fragment-12':
+      'REGISTRO DA UNIDADE [RESTRITO, DECIFRADO] - Consulta: por que o Coro responde ao ECHO-7 e não aos que vieram antes? Hipótese: nunca respondeu a uma espécie. Respondeu a uma assinatura. [DADOS CORROMPIDOS] ...respondeu a si mesmo.',
   },
 };

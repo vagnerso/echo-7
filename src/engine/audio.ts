@@ -71,3 +71,17 @@ export function playPuzzleSolvedSound(): void {
   setTimeout(() => playTone(659, 100, 'sine', 0.05), 100);
   setTimeout(() => playTone(784, 150, 'sine', 0.05), 200);
 }
+
+// Escala pentatonica maior (C5-D5-E5-G5-A5) - soa consonante em qualquer
+// ordem, mas so forma a "frase completa" subindo quando as torres de
+// Thousand Spires sao ativadas na sequencia certa (THOUSAND_SPIRES_PUZZLE,
+// content/puzzles.ts). Indice = posicao da torre em correctOrder, nao a
+// ordem em que o jogador aperta - apertar fora de ordem soa "errado" (nota
+// fora do lugar), sem nenhuma logica alem de tocar a nota daquele indice.
+const SPIRE_TONE_FREQUENCIES_HZ = [523.25, 587.33, 659.25, 783.99, 880];
+
+export function playSpireToneSound(step: number): void {
+  const frequency = SPIRE_TONE_FREQUENCIES_HZ[step];
+  if (frequency === undefined) return;
+  playTone(frequency, 260, 'sine', 0.05);
+}

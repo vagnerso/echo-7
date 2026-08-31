@@ -1,20 +1,26 @@
 import { useEffect, useRef } from 'react';
 
 import { TouchControls } from '@/components/TouchControls/TouchControls';
-import { MEMORY_FRAGMENTS } from '@/content/fragments';
+import { BURIED_CHORD_FRAGMENT_IDS, MEMORY_FRAGMENTS } from '@/content/fragments';
 import { FRAGMENT_COLOR, ITEM_TYPE_COLORS } from '@/content/itemColors';
-import { PUZZLES } from '@/content/puzzles';
-import { REGIONS } from '@/content/regions';
 import {
+  BURIED_CHORD_PUZZLE_ID,
+  PUZZLES,
+  THOUSAND_SPIRES_PUZZLE_ID,
+} from '@/content/puzzles';
+import { BURIED_CHORD, REGIONS } from '@/content/regions';
+import {
+  resolveRobotPalette,
   type RobotPalette,
-  ROBOT_COLOR_PALETTES,
 } from '@/content/robotColors';
+import { DEEP_SCANNER_UPGRADE_ID } from '@/content/upgrades';
 import {
   playFootstepSound,
   playInteractSound,
   playPickupSound,
   playPuzzleSolvedSound,
   playScannerToggleSound,
+  playSpireToneSound,
 } from '@/engine/audio';
 import {
   type Camera,
@@ -35,6 +41,11 @@ import type { Puzzle } from '@/entities/puzzle';
 import { useGameLoop } from '@/hooks/useGameLoop';
 import type { AABB } from '@/systems/collisionSystem';
 import { resolveCollisions } from '@/systems/collisionSystem';
+import {
+  AMBIENT_REVEAL_RADIUS,
+  REWARD_FLASH_RADIUS,
+  stepRevealRadius,
+} from '@/systems/darknessSystem';
 import { findNearestInteractable } from '@/systems/interactionSystem';
 import { updatePlayerMovement } from '@/systems/movementSystem';
 import { activateSwitch } from '@/systems/puzzleSystem';
@@ -43,7 +54,6 @@ import {
   findNearestScannable,
 } from '@/systems/scannerSystem';
 import { findInstallableUpgrades } from '@/systems/upgradeSystem';
-import { DEFAULT_ROBOT_COLOR } from '@/i18n';
 import { saveGame } from '@/save/saveGame';
 import { useGameStore } from '@/state/gameStore';
 import { useSettingsStore } from '@/state/settingsStore';
@@ -201,6 +211,31 @@ const REGION_GROUND_PALETTES: Record<string, GroundPalette> = {
     speckleColors: ['rgba(140, 110, 70, 0.28)', 'rgba(100, 80, 60, 0.22)'],
     crackColor: 'rgba(70, 55, 40, 0.4)',
     accentColor: 'rgba(230, 180, 90, 0.16)',
+  },
+  'region-5': {
+    // Thousand Spires: campo frio e quase monocromatico (contraste
+    // deliberado com as paletas organicas das outras regioes) - grade em vez
+    // de rachaduras (como o Signal Core), mas bem mais espacada, para
+    // parecer uma rede antiga e silenciosa, nao uma instalacao ativa. O
+    // acento quente e escasso de proposito: "ainda ha uma nota acesa aqui".
+    skyTop: '#12131f',
+    skyBottom: '#0a0b14',
+    speckleColors: ['rgba(180, 190, 210, 0.18)', 'rgba(140, 150, 180, 0.14)'],
+    crackColor: 'rgba(100, 110, 140, 0.3)',
+    accentColor: 'rgba(230, 190, 110, 0.18)',
+    gridSpacing: 96,
+  },
+  'region-6': {
+    // The Buried Chord: camara natural, nao instalacao - rachaduras organicas
+    // (como a Landing Zone/Ancient Ruins), nao grade, de proposito distinta
+    // de Thousand Spires ali em cima. Quase toda a paleta fica escondida pela
+    // escuridao (ver computeRevealRadius/darknessSystem.ts) - so aparece de
+    // perto, num pulso do scanner.
+    skyTop: '#0d0a14',
+    skyBottom: '#07050c',
+    speckleColors: ['rgba(170, 140, 200, 0.2)'],
+    crackColor: 'rgba(90, 70, 120, 0.35)',
+    accentColor: 'rgba(210, 170, 255, 0.18)',
   },
 };
 
@@ -856,6 +891,7 @@ function renderScannables(
   ctx: CanvasRenderingContext2D,
   objects: readonly WorldObject[],
   nearestId: string | null,
+  solvedPuzzles: ReadonlySet<string>,
   hasDeepScanner: boolean,
   camera: Camera,
   canvasWidth: number,
@@ -867,6 +903,16 @@ function renderScannables(
     // senao o jogador veria o losango no mapa mesmo com o scanner
     // acusando "NO SIGNAL" ali do lado, o que seria inconsistente.
     if (object.requiresDeepScanner && !hasDeepScanner) continue;
+
+    // Mesmo tratamento de requiresPuzzleSolved que renderInteractables ja
+    // faz - sem isso, um objeto ao mesmo tempo scannable + interactable +
+    // requiresPuzzleSolved (ex: buried-chord-entrance) renderizava aqui a
+    // 100% de opacidade, por cima do losango apagado que renderInteractables
+    // ja tinha desenhado, escondendo visualmente o "ainda esta trancado".
+    const isLocked =
+      object.requiresPuzzleSolved !== undefined &&
+      !solvedPuzzles.has(object.requiresPuzzleSolved);
+    ctx.globalAlpha = isLocked ? 0.35 : 1;
 
     const screenPosition = worldToScreen(
       object.position,
@@ -905,6 +951,9 @@ function renderScannables(
     ctx.arc(screenPosition.x - 2, screenPosition.y - 2, 1.4, 0, Math.PI * 2);
     ctx.fill();
   }
+  // Mesmo motivo do fim de renderInteractables - nao vazar opacidade
+  // reduzida para o que for desenhado depois (particulas, o proprio robo).
+  ctx.globalAlpha = 1;
 }
 
 function renderParticles(
@@ -932,6 +981,129 @@ function renderParticles(
   ctx.globalAlpha = 1;
 }
 
+const DARKNESS_OVERLAY_COLOR = 'rgba(4, 3, 7, 0.98)';
+// Mesmo ciano da lente/antena do robo (PLAYER_LENS_GLOW) - o brilho da area
+// revelada usa a mesma cor "de sensor" ja estabelecida, em vez de inventar
+// uma cor nova so pra este efeito.
+const DARKNESS_GLOW_COLOR = '94, 230, 200';
+
+/**
+ * Canvas auxiliar (fora do DOM) usado so para compor a mascara de escuridao
+ * - criado uma vez, redimensionado sob demanda (o tamanho do canvas
+ * principal muda com a janela, ver resize() no efeito de layout). Guardado
+ * num ref (nao recriado a cada frame) pelo mesmo motivo de
+ * `groundTexturesRef`: criar um `HTMLCanvasElement` novo por frame seria
+ * desperdicio, e o navegador so precisa de um, sempre reaproveitado.
+ */
+function getDarknessMaskCanvas(
+  ref: { current: HTMLCanvasElement | null },
+  width: number,
+  height: number,
+): HTMLCanvasElement {
+  let mask = ref.current;
+  if (!mask) {
+    mask = document.createElement('canvas');
+    ref.current = mask;
+  }
+  if (mask.width !== width || mask.height !== height) {
+    mask.width = width;
+    mask.height = height;
+  }
+  return mask;
+}
+
+/**
+ * `destination-out` direto no canvas principal nao "revela o que ja estava
+ * desenhado ali" - canvas e um unico raster, sem camadas. Uma vez que o
+ * fillRect escuro (quase opaco) e desenhado por cima do robo/mundo com
+ * blend normal, aquela informacao de cor esta perdida; recortar um buraco
+ * depois so deixa a regiao transparente (mostra o fundo da pagina atras do
+ * <canvas>, nao o robo). Por isso a mascara e composta num canvas separado
+ * (preenchido do zero a cada frame, sempre transparente fora do buraco) e
+ * só *esse* resultado - que agora tem alpha real, opaco fora / transparente
+ * dentro - é desenhado sobre o mundo com `drawImage` (blend normal). Mesmo
+ * problema, mesma categoria de solução do "fog of war" em qualquer engine
+ * baseada em canvas 2D: a mascara nunca pode ser composta na mesma
+ * superficie que ela precisa esconder.
+ */
+function renderDarknessMask(
+  maskCtx: CanvasRenderingContext2D,
+  screenPosition: Vector2,
+  revealRadius: number,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  maskCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+  maskCtx.fillStyle = DARKNESS_OVERLAY_COLOR;
+  maskCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  maskCtx.save();
+  maskCtx.globalCompositeOperation = 'destination-out';
+  const holeGradient = maskCtx.createRadialGradient(
+    screenPosition.x,
+    screenPosition.y,
+    0,
+    screenPosition.x,
+    screenPosition.y,
+    revealRadius,
+  );
+  holeGradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+  holeGradient.addColorStop(0.7, 'rgba(0, 0, 0, 1)');
+  holeGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  maskCtx.fillStyle = holeGradient;
+  maskCtx.beginPath();
+  maskCtx.arc(screenPosition.x, screenPosition.y, revealRadius, 0, Math.PI * 2);
+  maskCtx.fill();
+  maskCtx.restore();
+}
+
+/**
+ * Composta a mascara de escuridao (ja pronta, com o buraco real) sobre o
+ * mundo, e desenha por cima um glow aditivo na cor do sensor do robo -
+ * garante que a area revelada pareca iluminada de verdade, nao so "um pouco
+ * menos escura" (o chao desta regiao ja e escuro por natureza). So chamada
+ * quando a regiao atual e The Buried Chord.
+ */
+function renderDarkness(
+  ctx: CanvasRenderingContext2D,
+  maskCanvas: HTMLCanvasElement,
+  screenPosition: Vector2,
+  revealRadius: number,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  const maskCtx = maskCanvas.getContext('2d');
+  if (!maskCtx) return;
+
+  renderDarknessMask(
+    maskCtx,
+    screenPosition,
+    revealRadius,
+    canvasWidth,
+    canvasHeight,
+  );
+  ctx.drawImage(maskCanvas, 0, 0);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const glowGradient = ctx.createRadialGradient(
+    screenPosition.x,
+    screenPosition.y,
+    0,
+    screenPosition.x,
+    screenPosition.y,
+    revealRadius,
+  );
+  glowGradient.addColorStop(0, `rgba(${DARKNESS_GLOW_COLOR}, 0.4)`);
+  glowGradient.addColorStop(0.7, `rgba(${DARKNESS_GLOW_COLOR}, 0.16)`);
+  glowGradient.addColorStop(1, `rgba(${DARKNESS_GLOW_COLOR}, 0)`);
+  ctx.fillStyle = glowGradient;
+  ctx.beginPath();
+  ctx.arc(screenPosition.x, screenPosition.y, revealRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 const INITIAL_SPAWN: Vector2 = { x: 200, y: 200 };
 
 // Ponto de entrada de cada regiao, para quando o jogador "continua" um save
@@ -945,11 +1117,25 @@ const REGION_SPAWN_POINTS: Record<string, Vector2> = {
   'region-2': { x: 128, y: 448 },
   'region-3': { x: 320, y: 512 },
   'region-4': { x: 256, y: 384 },
+  // Perto da parede de baixo, de frente para as 5 torres - primeira visao
+  // do jogador ao entrar (link "continuar explorando" da EndingScreen).
+  'region-5': { x: 512, y: 640 },
+  // Bate com o spawnPosition de buried-chord-entrance (content/regions.ts).
+  'region-6': { x: 128, y: 384 },
 };
 
 function resolveSpawnPoint(): Vector2 {
   const regionId = useGameStore.getState().currentRegionId;
   return REGION_SPAWN_POINTS[regionId] ?? INITIAL_SPAWN;
+}
+
+/**
+ * "O jogador ja tem o Deep Scanner instalado?" e checado em varios pontos
+ * (interacao, scanner, render) - centralizado aqui, em vez de cada call site
+ * repetir `installedUpgrades.has(DEEP_SCANNER_UPGRADE_ID)` por conta propria.
+ */
+function hasDeepScannerInstalled(): boolean {
+  return useGameStore.getState().installedUpgrades.has(DEEP_SCANNER_UPGRADE_ID);
 }
 
 export function GameCanvas() {
@@ -978,6 +1164,11 @@ export function GameCanvas() {
   // sessoes longas, sem afetar a suavidade dos senos usados no render.
   const animationTimeRef = useRef<number>(0);
   const isMovingRef = useRef<boolean>(false);
+  // Raio atual de revelacao ao redor do robo - so tem efeito visual dentro
+  // de The Buried Chord (ver stepRevealRadius em systems/darknessSystem.ts),
+  // suavizado a cada frame em direcao ao raio ligado/desligado do scanner.
+  const darknessRevealRadiusRef = useRef<number>(AMBIENT_REVEAL_RADIUS);
+  const darknessMaskCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const groundTexturesRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   // Tamanho do canvas em pixels CSS (nao em pixels de buffer - ver
   // computeCanvasSize/resize abaixo). O mundo e desenhado em unidades de
@@ -1164,7 +1355,7 @@ export function GameCanvas() {
         activeObjects,
         undefined,
         useGameStore.getState().solvedPuzzles,
-        useGameStore.getState().installedUpgrades.has('deep-scanner'),
+        hasDeepScannerInstalled(),
       );
       nearestInteractableRef.current = nearestInteractable;
 
@@ -1199,7 +1390,19 @@ export function GameCanvas() {
                 useGameStore.getState().setObjective('findWayToSignalCore');
               } else if (puzzleId === 'signal-core-puzzle') {
                 useGameStore.getState().setObjective('approachCore');
+              } else if (puzzleId === BURIED_CHORD_PUZZLE_ID) {
+                // "Surpresa" pedida pelo desenvolvedor: o desafio final do
+                // epilogo, resolvido quase as cegas, e recompensado com um
+                // flash de luz na sala inteira - sem timer novo, o proprio
+                // stepRevealRadius (chamado todo frame) ja suaviza esse
+                // valor de volta ao raio normal sozinho.
+                darknessRevealRadiusRef.current = REWARD_FLASH_RADIUS;
               }
+            } else if (puzzleId === THOUSAND_SPIRES_PUZZLE_ID) {
+              // Cada torre toca a nota da sua propria posicao na ordem
+              // certa (nao a ordem em que o jogador apertou) - fora de
+              // ordem soa "errado", sem logica alem de indexar a nota.
+              playSpireToneSound(puzzle.config.correctOrder.indexOf(switchId));
             } else {
               playInteractSound();
             }
@@ -1214,6 +1417,18 @@ export function GameCanvas() {
           useGameStore.getState().collectFragment(fragmentId);
           if (fragment) {
             useUiStore.getState().setActiveFragmentReveal(fragment);
+          }
+
+          // v3.0 - os dois fragmentos de The Buried Chord sao a ultima
+          // coisa que existe pra descobrir no epilogo hoje; coletar o
+          // segundo (em qualquer ordem) fecha o arco com uma tela propria,
+          // em vez de o jogador voltar pra Thousand Spires sem nenhum sinal
+          // de que "terminou".
+          const { collectedFragments } = useGameStore.getState();
+          if (
+            BURIED_CHORD_FRAGMENT_IDS.every((id) => collectedFragments.has(id))
+          ) {
+            useGameStore.getState().completeEpilogue();
           }
         } else if (nearestInteractable.collectible) {
           const added = useGameStore
@@ -1266,14 +1481,21 @@ export function GameCanvas() {
         useUiStore.getState().toggleScanner();
       }
 
+      // So tem efeito visual dentro de The Buried Chord (ver renderDarkness
+      // no render()), mas suavizar sempre e inofensivo/barato em qualquer
+      // outra regiao (o ref so e lido la).
+      darknessRevealRadiusRef.current = stepRevealRadius(
+        darknessRevealRadiusRef.current,
+        useUiStore.getState().isScannerActive,
+        dt,
+      );
+
       if (input.wasActionJustPressed('inventory')) {
         useUiStore.getState().toggleInventory();
       }
 
       const isScannerActive = useUiStore.getState().isScannerActive;
-      const hasDeepScanner = useGameStore
-        .getState()
-        .installedUpgrades.has('deep-scanner');
+      const hasDeepScanner = hasDeepScannerInstalled();
       const nearestScannable = isScannerActive
         ? findNearestScannable(
             player.position,
@@ -1406,7 +1628,7 @@ export function GameCanvas() {
         nearestInteractableRef.current?.id ?? null,
         (puzzleId) => puzzleProgressRef.current.get(puzzleId) ?? [],
         useGameStore.getState().solvedPuzzles,
-        useGameStore.getState().installedUpgrades.has('deep-scanner'),
+        hasDeepScannerInstalled(),
         camera,
         canvasWidth,
         canvasHeight,
@@ -1415,7 +1637,8 @@ export function GameCanvas() {
         ctx,
         activeObjects,
         nearestScannableRef.current?.id ?? null,
-        useGameStore.getState().installedUpgrades.has('deep-scanner'),
+        useGameStore.getState().solvedPuzzles,
+        hasDeepScannerInstalled(),
         camera,
         canvasWidth,
         canvasHeight,
@@ -1434,10 +1657,9 @@ export function GameCanvas() {
         canvasWidth,
         canvasHeight,
       );
-      const robotColor = useSettingsStore.getState().robotColor;
-      const robotPalette =
-        ROBOT_COLOR_PALETTES[robotColor] ??
-        ROBOT_COLOR_PALETTES[DEFAULT_ROBOT_COLOR];
+      const robotPalette = resolveRobotPalette(
+        useSettingsStore.getState().robotColor,
+      );
       renderPlayer(
         ctx,
         screenPosition,
@@ -1448,6 +1670,22 @@ export function GameCanvas() {
         robotPalette,
         useUiStore.getState().isScannerActive,
       );
+
+      if (regionData.region.id === BURIED_CHORD.id) {
+        const maskCanvas = getDarknessMaskCanvas(
+          darknessMaskCanvasRef,
+          canvasWidth,
+          canvasHeight,
+        );
+        renderDarkness(
+          ctx,
+          maskCanvas,
+          screenPosition,
+          darknessRevealRadiusRef.current,
+          canvasWidth,
+          canvasHeight,
+        );
+      }
 
       const transition = transitionRef.current;
       if (transition.phase !== 'idle') {

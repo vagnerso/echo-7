@@ -1,4 +1,4 @@
-import type { RobotColorKey } from '@/i18n';
+import { DEFAULT_ROBOT_COLOR, type RobotColorKey } from '@/i18n';
 
 /**
  * "Pintura" do robo: chassi (body/light/dark), contorno e pernas. O sensor
@@ -63,3 +63,14 @@ export const ROBOT_COLOR_KEYS: readonly RobotColorKey[] = [
   'green',
   'azure',
 ];
+
+/**
+ * Unica funcao deste arquivo (o resto e so dado) - existe para a regra de
+ * fallback ("cor invalida/desconhecida cai para a cor padrao") ter um unico
+ * lugar, em vez de cada chamador repetir `ROBOT_COLOR_PALETTES[cor] ??
+ * ROBOT_COLOR_PALETTES[DEFAULT_ROBOT_COLOR]` por conta propria (um dos
+ * chamadores - o retrato do menu - tinha esquecido o fallback).
+ */
+export function resolveRobotPalette(color: RobotColorKey): RobotPalette {
+  return ROBOT_COLOR_PALETTES[color] ?? ROBOT_COLOR_PALETTES[DEFAULT_ROBOT_COLOR];
+}

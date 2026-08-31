@@ -941,3 +941,207 @@ Dois problemas reportados pelo desenvolvedor jogando em celular de verdade.
 **Motivo:** ECHO-7 não tem nenhum campo de texto ou conteúdo que precise ser selecionável em lugar nenhum da interface (confirmado: zero `<input>`/`<textarea>` no projeto) - desabilitar globalmente resolve a causa (o gesto de seleção nunca deveria existir neste app) em vez de tapar buraco painel por painel, o que deixaria qualquer painel novo futuro vulnerável ao mesmo bug até alguém lembrar de adicionar a regra nele também.
 
 **Verificação:** Playwright emulando toque (`hasTouch: true`) - toque prolongado (2s) num botão do D-pad, seguido de `window.getSelection().toString()`, retorna string vazia.
+
+## Limpeza: duas duplicações reais extraídas antes de começar conteúdo novo
+
+A pedido do desenvolvedor ("evite duplicidade, crie hooks para o que for reaproveitável, crie tokens em vez de valores hardcoded"), antes de empilhar a região nova em cima do código existente.
+
+### `'deep-scanner'` como string solta, repetida 4x em `GameCanvas.tsx`
+
+**Causa:** cada ponto que precisava checar "o jogador já tem o Deep Scanner?" escrevia `installedUpgrades.has('deep-scanner')` de novo - 4 ocorrências, cada uma um risco de erro de digitação que o TypeScript não pega (é uma `Set<string>` genérica, não uma union type).
+
+**Decisão:** `content/upgrades.ts` exporta `DEEP_SCANNER_UPGRADE_ID` (usado também na própria definição de `UPGRADES`, então o literal `'deep-scanner'` existe uma única vez no projeto todo) e `GameCanvas.tsx` ganhou uma função de módulo, `hasDeepScannerInstalled()`, que os 4 pontos agora chamam.
+
+**Motivo:** a constante sozinha já mataria o problema do literal repetido; a função elimina também a repetição da chamada `useGameStore.getState().installedUpgrades.has(...)` em si. Não virou um hook React porque nenhum dos 4 call sites está em corpo de componente - são callbacks `update`/`render` passados pro `useGameLoop`, onde hooks não podem ser chamados (regras do React).
+
+### Resolução da paleta do robô duplicada 3x - uma delas sem o fallback
+
+**Causa:** `ROBOT_COLOR_PALETTES[cor] ?? ROBOT_COLOR_PALETTES[DEFAULT_ROBOT_COLOR]` (a regra "cor desconhecida cai pro padrão") estava reescrita em `GameCanvas.tsx` e faltando por completo no retrato do robô em `MainMenu.tsx` - que fazia só `ROBOT_COLOR_PALETTES[robotColor]`, sem fallback. Inofensivo hoje (todo valor salvo é sempre uma `RobotColorKey` válida), mas um bug latente à espera de um save corrompido ou uma chave removida no futuro.
+
+**Decisão:** `content/robotColors.ts` (que já é o dono de `ROBOT_COLOR_PALETTES`) ganhou `resolveRobotPalette(color)`, uma função pura com a regra de fallback centralizada - a única função exportada por um arquivo que, fora isso, é só dado. Para o caso de uso em componente React, `hooks/useRobotPalette.ts` (novo) chama `useSettingsStore` + `resolveRobotPalette` e é isso que `MainMenu.tsx` passou a usar (corrigindo o bug do fallback ausente de quebra). `GameCanvas.tsx` (fora de React) chama `resolveRobotPalette` direto.
+
+**Motivo:** dois consumidores com necessidades diferentes (um dentro de React, um fora) pediam duas camadas: a regra de negócio pura (reaproveitável em qualquer contexto) e um hook fino por cima dela (conveniência só onde hooks fazem sentido) - em vez de duplicar a regra nos dois lugares ou forçar um hook onde ele não pode ser chamado.
+
+**Verificação:** typecheck, oxlint, 123 testes automatizados sem alteração (refatoração pura, nenhum comportamento mudou) + conferência visual via Playwright (menu e jogo renderizando a cor certa antes e depois).
+
+## v3.0 — Thousand Spires
+
+Pedido do desenvolvedor: uma fase nova "pra chamar atenção", pensada desde já para gerar conteúdo de divulgação (posts/vídeos). Decisão de escopo tomada em conversa antes de qualquer código: em vez de inventar um gancho novo, a fase parte do que o próprio final do jogo já promete (`EndingScreen`: o núcleo reconhece o ECHO-7 como **"parente"** e detecta, na sequência, um sinal vindo de **além do espaço mapeado**) e resolve o fio solto do Kade (`fragment-07`/`fragment-08`, Buried Cache: um achado enterrado que "não é geologia").
+
+### Estrutura decidida: duas áreas, um fio narrativo
+
+- **Thousand Spires** (`region-5`, principal) - planeta coberto de torres de transmissão antigas. Reaproveita o puzzle de sequência já existente, agora retematizado: cada torre ativada emite um tom, e resolver o puzzle "compõe" a frase que a rede esperou milênios para ouvir de novo.
+- **The Buried Chord** (área secreta dentro de Thousand Spires, mesmo padrão da Buried Cache dentro da Landing Zone) - câmara em escuridão quase total. Novo uso real para o anel de sinal da antena (hoje só cosmético, ver seção "Sinal de radar na antena" acima): cada pulso do scanner ilumina um raio ao redor do robô por um instante. É aqui que o achado do Kade se revela.
+
+Nomes escolhidos entre alternativas apresentadas ao desenvolvedor (Relay Spires, The Listening Field, The First Frequency / The Silent Core, The Hollow, The Resonance Vault) - "Thousand Spires" pelo apelo visual imediato (forte para screenshot/vídeo, o objetivo declarado desta fase); "The Buried Chord" por ecoar "Buried Cache" de propósito, reforçando que é o mesmo fio do Kade, e emendar no tema musical da região.
+
+### Decisão de fluxo: não mexer no final já existente
+
+**Decisão:** Thousand Spires é alcançada por um link "continuar explorando" a partir da própria `EndingScreen`, como um epílogo - o final atual (tela, texto, `triggersEnding` em `signal-core`) permanece exatamente como está.
+
+**Alternativa considerada:** mover o gatilho do final para dentro de Thousand Spires (jornada mais "costurada", sem uma tela de "fim" no meio do caminho).
+
+**Motivo:** a alternativa exigiria reabrir um fluxo que já funciona e foi testado (a vertical slice do MVP) só para acomodar conteúdo que ainda não existe. O link a partir da `EndingScreen` entrega a mesma continuidade narrativa sem nenhum risco para quem já terminou o jogo hoje.
+
+### Fase A entregue: só o texto, não o código ainda
+
+**Decisão:** esta fase (A) fecha o texto novo (abaixo) e as duas decisões acima, mas **não** cria `region-5` em `content/regions.ts` nem o link na `EndingScreen` ainda - isso fica para a Fase B, junto com o conteúdo real da região.
+
+**Motivo (corrigindo o plano original em conversa com o desenvolvedor):** `MEMORY_FRAGMENTS.length` alimenta direto o contador "X/N fragmentos" do `InventoryPanel` - qualquer fragmento novo adicionado a `content/fragments.ts` conta para esse N imediatamente, mesmo antes de existir um objeto em algum lugar que o torne coletável. Criar o esqueleto da região (ou os fragmentos) antes de Thousand Spires ser realmente jogável inflaria esse contador com itens permanentemente inalcançáveis para quem jogasse nesse meio-tempo - exatamente o tipo de "implementação pela metade" que o próprio desenvolvedor pediu para evitar. Região, fragmentos e o link da `EndingScreen` entram juntos, atômicos, na Fase B.
+
+### Texto novo (aprovado, pronto para a Fase B)
+
+Muda de registro de propósito: os logs de campo humanos (Log 03-33, narrador; Log 07/15, Kade) pertenciam à primeira expedição, já concluída. Aqui a voz é outra - transmissões da própria rede alienígena, e registros restritos da unidade ECHO-7 sobre si mesma.
+
+| id | corruption | EN | PT-BR |
+|---|---|---|---|
+| `fragment-09` | 44 | "TRANSMISSION [ORIGIN UNKNOWN] - Before language, there was frequency. Before we had names, we had the Choir. Every spire you see was not raised to speak outward. It was raised to remember how to listen." | "TRANSMISSÃO [ORIGEM DESCONHECIDA] - Antes da linguagem, havia frequência. Antes de termos nomes, tínhamos o Coro. Cada torre que você vê não foi erguida para falar para fora. Foi erguida para lembrar como se escuta." |
+| `fragment-10` | 67 | "UNIT LOG [RESTRICTED] - Component 7-A was not manufactured on the date recorded. Origin: unregistered. Cross-reference: signal pattern identical to Landing Zone anomaly. Recommend no further inquiry. [ENTRY SEALED]" | "REGISTRO DA UNIDADE [RESTRITO] - O Componente 7-A não foi fabricado na data registrada. Origem: não catalogada. Referência cruzada: padrão de sinal idêntico à anomalia da Landing Zone. Recomenda-se não investigar mais. [ENTRADA SELADA]" |
+| `fragment-11` | 28 | "TRANSMISSION [ORIGIN UNKNOWN] - The fragment your predecessor buried was never geology. It was a key cut for a lock we forgot we built. It has been waiting exactly where he left it, tuned to the one frequency it was always meant to answer." | "TRANSMISSÃO [ORIGEM DESCONHECIDA] - O fragmento que seu predecessor enterrou nunca foi geologia. Era uma chave talhada para uma fechadura que esquecemos de ter construído. Esperou exatamente onde ele a deixou, sintonizada na única frequência que sempre esteve destinada a responder." |
+| `fragment-12` | 51 | "UNIT LOG [RESTRICTED, DECRYPTED] - Query: why does the Choir answer ECHO-7 and not the ones who came before? Hypothesis: it was never answering a species. It was answering a signature. [DATA CORRUPTED] ...it was answering itself." | "REGISTRO DA UNIDADE [RESTRITO, DECIFRADO] - Consulta: por que o Coro responde ao ECHO-7 e não aos que vieram antes? Hipótese: nunca respondeu a uma espécie. Respondeu a uma assinatura. [DADOS CORROMPIDOS] ...respondeu a si mesmo." |
+
+`fragment-09`/`fragment-10` ficam em Thousand Spires; `fragment-11`/`fragment-12` em The Buried Chord (o par que fecha o fio do Kade, por isso vem por último). Mesma cadência das regiões anteriores (2 fragmentos por área). `fragment-11`/`fragment-12` continuam só como texto aprovado - só entram em `content/fragments.ts` quando The Buried Chord existir de verdade (mesmo motivo da secão anterior).
+
+### Fase B entregue: Thousand Spires jogável (`region-5`)
+
+Junto, atômico, como decidido na Fase A: `content/regions.ts` (região + os 5 nós + `fragment-09`/`fragment-10` colocados), `content/fragments.ts` (as duas entradas), `en.ts`/`ptBR.ts` (textos), `content/puzzles.ts` (`THOUSAND_SPIRES_PUZZLE`), paleta nova em `GameCanvas.tsx` (`REGION_GROUND_PALETTES['region-5']`, grade espaçada em vez de rachaduras orgânicas - "rede antiga e silenciosa", ecoando mas distinta do Signal Core) e o link na `EndingScreen`.
+
+**Cada torre com sua própria nota:** `engine/audio.ts` ganhou `playSpireToneSound(step)`, indexando uma escala pentatônica maior fixa (`SPIRE_TONE_FREQUENCIES_HZ`, 5 notas - o puzzle tem 5 nós de propósito, um por nota). `GameCanvas.tsx` identifica o puzzle pelo id exportado (`THOUSAND_SPIRES_PUZZLE_ID`, não uma string solta) e toca a nota da posição do switch em `correctOrder` - não a ordem em que o jogador apertou, então acertar a sequência real soa como uma escala subindo e errar soa "fora do lugar", de graça, sem nenhuma lógica além de indexar.
+
+**Sem `exit` nesta região:** Thousand Spires só é alcançada pelo link da `EndingScreen` (nunca por um `exit` de outra região) - por isso não há nenhum objeto `exit` nela ainda. A entrada de The Buried Chord (Fase C) vai reaproveitar o padrão já usado pela `buried-cache-entrance` (`scannable + interactable + requiresDeepScanner`), não um `exit` chegando de fora.
+
+### Bug encontrado ao ligar o epílogo: `hasReachedEnding` escondia a `MissionHUD` para sempre
+
+**Causa raiz:** `MissionHUD` tinha `if (hasReachedEnding) return null;` - correto quando "o jogo acabou" significava "não há mais nada pra jogar", mas deixou de ser verdade a partir desta fase: dentro de Thousand Spires o jogo continua de verdade (tem objetivo, tem puzzle, tem HUD), só que `hasReachedEnding` permanece `true` (nunca é resetado ao entrar no epílogo - ver decisão abaixo). Sem a correção, o HUD de objetivo simplesmente nunca aparecia em Thousand Spires.
+
+**Decisão:** em vez de resetar `hasReachedEnding` (o que reabriria a pergunta de "a `EndingScreen` deveria poder aparecer nesse save de novo?"), a condição virou "terminou **e ainda não entrou no epílogo**" - `hasReachedEnding && currentRegionId !== THOUSAND_SPIRES.id`. Essa mesma condição também decide, em `App.tsx`, se mostra `EndingScreen` ou `GameCanvas` (sem ela, "Continuar" depois de sair do epílogo e recarregar a página levaria de volta pra tela de final pra sempre, nunca de volta pra Thousand Spires). Duas telas, uma condição - extraída para `hooks/useShouldShowEndingScreen()` em vez de duplicar a expressão nas duas.
+
+**Motivo:** nenhum campo novo de save foi necessário - `currentRegionId` e `hasReachedEnding` já eram persistidos. Cogitei um novo campo (`hasEnteredEpilogue`), mas isso pediria pensar em migração de saves antigos para um ganho zero: o par que já existe já responde exatamente à pergunta "o jogador está em Thousand Spires agora?" sem ambiguidade.
+
+**Verificação:** Playwright de ponta a ponta - save injetado direto no `localStorage` (pós-Signal Core, `hasReachedEnding: true`) para não precisar jogar a campanha inteira; confirma a `EndingScreen` aparecendo, o botão "continue exploring" levando a Thousand Spires com a `MissionHUD` mostrando o objetivo certo, as 5 torres resolvidas na ordem certa gravando `thousand-spires-puzzle` em `solvedPuzzles`, e um reload seguido de "Continue" voltando direto para Thousand Spires (não para a `EndingScreen`). Zero erros de console em toda a sequência; typecheck, oxlint e os 123 testes automatizados sem alteração.
+
+**Screenshot novo:** `docs/screenshots/thousand-spires.png` adicionado ao README - o objetivo declarado desta fase inteira era ter algo pra mostrar.
+
+### Fase C entregue: The Buried Chord (`region-6`) - escuridão + pulso do radar
+
+Reaproveita exatamente o padrão da `buried-cache-entrance` (Landing Zone → Buried Cache): `buried-chord-entrance` (novo objeto dentro de `THOUSAND_SPIRES.objects`) é `scannable + interactable + requiresDeepScanner + exit`, levando a `region-6`, uma região separada (não uma "zona escura" dentro da própria Thousand Spires) - mais simples de implementar (a escuridão vale pra região inteira, sem precisar particionar tiles "claros" de "escuros" dentro de uma única região) e reaproveita 100% do sistema de exit/spawn já existente.
+
+**Sem puzzle próprio:** diferente de Ancient Ruins/Signal Core/Buried Cache, The Buried Chord não tem seu próprio puzzle de sequência - a navegação às cegas, guiada só pelos pulsos do scanner, já cumpre esse papel. Os 2 fragmentos exigem `THOUSAND_SPIRES_PUZZLE_ID` resolvido (o puzzle *de fora*) em vez de um novo - narrativamente, "o Coro só responde depois de ouvir a própria melodia de novo"; tecnicamente, reaproveita o mesmo `requiresPuzzleSolved` (dimmed a 35% até resolvido) já usado em toda região anterior, sem precisar de um segundo puzzle só por variedade.
+
+**Chokepoint que exige Magnetic Boots:** uma única coluna de parede divide a região em duas metades (entrada / fragmentos), com um único tile `hazard` como a única passagem - sem Magnetic Boots instalado, os fragmentos ficam inacessíveis. Deliberado: mesmo padrão já usado na alcova magnética da Landing Zone (Fase 6), agora reaproveitado como o "filtro de completude" natural do epílogo, sem introduzir nenhum mecanismo novo.
+
+**`systems/darknessSystem.ts` (lógica pura, testada):** `computeRevealRadius(animationTime, lastPulseTime)` devolve o raio visível ao redor do robô - um raio ambiente mínimo (`AMBIENT_REVEAL_RADIUS = 36`, o próprio robô sempre vê o próprio chão) que salta para `PULSE_REVEAL_RADIUS = 150` a cada scanner ligado e desvanece de volta ao ambiente ao longo de `PULSE_FADE_DURATION_MS`. Pura (só números de entrada/saída, sem canvas nem store) e com 5 testes cobrindo os casos de borda (nunca pulsou, logo após o pulso, muito depois do pulso, decrescimento monotônico) - mesmo padrão de `SCAN_RANGE`/`scannerSystem.ts` que o próprio desenvolvedor já validou.
+
+**Renderização - `destination-out`, sem tocar em nenhuma função de desenho existente:** `renderDarkness` (nova função em `GameCanvas.tsx`, chamada só quando `regionData.region.id === BURIED_CHORD.id`) cobre a tela toda de escuro e usa `globalCompositeOperation = 'destination-out'` com um gradiente radial para "recortar" um círculo transparente ao redor do jogador - a técnica usual de fog-of-war em canvas. Chamada **depois** de tudo (tiles, decorações, interagíveis, escaneáveis, partículas, robô) já estar desenhado - a escuridão cobre o que já existe, então nenhuma das funções de render existentes precisou saber que a escuridão existe.
+
+**Pulso disparado pelo toggle do scanner, não uma tecla nova:** `darknessPulseTimeRef` grava `animationTimeRef.current` sempre que `Q` liga o scanner (`isScannerActive` vira `true` depois do toggle) - reaproveita a mesma tecla/ação que já existe, sem pedir um input novo. Gravar o pulso mesmo fora de The Buried Chord é inofensivo (nada lê esse ref em nenhuma outra região).
+
+### Bug encontrado ao testar: `useShouldShowEndingScreen` não conhecia `region-6`
+
+**Causa raiz:** o hook (criado nesta mesma fase, seção anterior) comparava `currentRegionId` só contra `THOUSAND_SPIRES.id` - correto enquanto o epílogo tinha uma única região, mas assim que o jogador entrava em The Buried Chord (`region-6`, `!== THOUSAND_SPIRES.id`), a condição "terminou e não está no epílogo" voltava a ser verdadeira e a `EndingScreen` reaparecia por cima do jogo de verdade.
+
+**Decisão:** `EPILOGUE_REGION_IDS`, um `Set` com os ids de toda região alcançável a partir do epílogo (`THOUSAND_SPIRES.id`, `BURIED_CHORD.id`) - a condição virou "`hasReachedEnding` e a região atual não está nesse conjunto". Lista explícita (não uma verificação genérica tipo "qualquer região com id >= 5") porque é exatamente assim que o resto do arquivo já modela regiões - sem inventar uma convenção de numeração implícita só para isso.
+
+**Motivo:** o mesmo raciocínio já registrado antes neste documento (lição da Fase C original, v2.0) - uma combinação nunca antes exercitada (o epílogo ganhar uma *segunda* região) expôs uma lacuna que não existia quando só havia uma. Corrigido generalizando a condição (um conjunto de ids), não com um caso especial para `region-6`, para qualquer área futura do epílogo se beneficiar automaticamente.
+
+**Verificação:** Playwright de ponta a ponta - save injetado com `installedUpgrades: ['deep-scanner', 'magnetic-boots']` e `solvedPuzzles` incluindo `thousand-spires-puzzle`; confirma "Continue" indo direto pra Thousand Spires (sem `EndingScreen`), a entrada oculta levando a The Buried Chord (tela quase totalmente preta), o pulso do scanner revelando um raio bem maior por alguns segundos, a travessia do chokepoint e a coleta dos 2 fragmentos finais (`collectedFragments` no save passa a conter `fragment-11`/`fragment-12`, contador do inventário mostra corretamente "12/12"). Zero erros de console em toda a sequência. Typecheck, oxlint e os 128 testes automatizados (123 + 5 novos de `darknessSystem`) sem alteração no restante.
+
+**Screenshot novo:** `docs/screenshots/buried-chord.png` (o momento do pulso revelando o raio) adicionado ao README.
+
+## Correções pós-revisão do desenvolvedor (Thousand Spires/The Buried Chord)
+
+Dois problemas reportados depois de jogar de verdade (nao no fluxo automatizado via save injetado) - nenhum dos dois apareceu nos testes E2E da Fase C porque o roteiro do teste nunca exercitou exatamente a sequencia de acoes que um jogador de verdade faria.
+
+### Escuridao nunca acendia, nem com a antena
+
+**Causa raiz:** a primeira versao de `systems/darknessSystem.ts` (`computeRevealRadius`) registrava um "pulso" - o `animationTime` de quando o scanner era ligado - e desvanecia o raio a partir dali. Isso so funcionava se o jogador ligasse o scanner *depois* de entrar em The Buried Chord. Um jogador que já tivesse ligado o scanner em Thousand Spires (ex: pra identificar o losango da entrada oculta no `ScannerOverlay`) e atravessasse a porta com o scanner ainda ligado nao disparava nenhum pulso novo - o raio ja tinha desvanecido de volta ao ambiente havia muito tempo. A primeira vez que apertasse `Q` *dentro* da sala, o scanner (que ja estava ligado) desligava, sem registrar pulso nenhum - so o segundo toque ligaria de novo. Uma sequência de dois toques nao óbvia, fácil de concluir "não funciona" no primeiro toque e desistir.
+
+**Decisão:** trocado o modelo inteiro - em vez de lembrar *quando* o scanner foi ligado pela última vez, `stepRevealRadius(currentRadius, isScannerActive, dt)` só olha para o estado *atual* do scanner a cada frame e suaviza o raio em direção ao alvo (ligado ou desligado) proporcional ao `dt`. Não existe mais nenhum "instante do último pulso" para ficar desatualizado.
+
+**Motivo:** a causa raiz não era a duração do pulso (1800ms parecia razoável) - era depender de um evento pontual no passado em vez do estado presente. Qualquer sequência de toggle que o jogador fizesse antes de entrar na regiao podia deixar esse evento "stale" de um jeito não óbvio de depurar só de olhar o código. Ler o estado atual a cada frame elimina essa classe inteira de bug - não há histórico para ficar desatualizado.
+
+**Efeito colateral resolvido de graça:** a versão antiga usava `animationTimeRef.current % 100_000` (dá wrap a cada ~100s) para o cálculo de `elapsed` - uma sessão longa o suficiente causaria um salto incorreto no raio bem depois do wrap. A versão nova não usa `animationTime` em nenhum lugar do cálculo, então esse risco desaparece junto.
+
+**Verificação:** 6 testes em `darknessSystem.test.ts` (cresce/encolhe em direção ao alvo, converge de verdade após vários passos, trava no alvo com `dt` grande, insensível a `dt` acumulado ao longo de uma sessão longa). Playwright: entra em The Buried Chord com o scanner desligado (escuro), liga (`Q`) e confirma o raio crescendo em ~700ms sem depender de nenhum estado anterior, desliga de novo e confirma o encolhimento.
+
+### Resolver as 5 torres não mudava nada perceptível
+
+**Causa raiz:** `buried-chord-entrance` só exigia `requiresDeepScanner` - a porta secreta já estava disponível (visível e funcional) assim que o jogador tivesse o Deep Scanner, **independente** de ter resolvido `THOUSAND_SPIRES_PUZZLE_ID`. O único efeito de resolver o puzzle era os 2 fragmentos dentro de The Buried Chord deixarem de estar `requiresPuzzleSolved` (invisíveis/inertes a quem ainda nem sabia que essa área existia) e as 5 torres mudarem de cor sutilmente (`SWITCH_COLOR` → `SWITCH_ACTIVE_COLOR`) - nada que se conectasse visivelmente à existência da área secreta.
+
+**Decisão:** `buried-chord-entrance` ganhou também `requiresPuzzleSolved: THOUSAND_SPIRES_PUZZLE_ID` - a porta agora fica visível mas apagada (35% de opacidade, mesmo tratamento já usado em `fragment-pickup-07`/`08` na Buried Cache) até o puzzle ser resolvido, e só responde a `E` depois. Resolver as torres agora "acende" uma porta que o jogador já podia ter visto escaneando.
+
+**Bug adicional encontrado ao implementar isso:** `renderScannables` não conhecia `requiresPuzzleSolved` - um objeto ao mesmo tempo `scannable` + `interactable` + `requiresPuzzleSolved` (como a `buried-chord-entrance`, único caso do jogo até agora) tinha o losango do `renderScannables` desenhado a 100% de opacidade **por cima** do retângulo já apagado que `renderInteractables` desenhava, escondendo visualmente o "ainda está trancado" - mesma categoria de lacuna já registrada várias vezes neste documento (combinação de flags nunca antes exercitada). Corrigido com o mesmo tratamento de opacidade em `renderScannables`, que ganhou um parâmetro `solvedPuzzles` novo.
+
+**Motivo:** consistente com o padrão já estabelecido (dimmed, não escondido - o jogador já pode ver fisicamente que ali existe algo, só não pode interagir ainda) em vez de esconder a porta por completo (que exigiria tratar `requiresPuzzleSolved` como o `requiresDeepScanner` já é tratado - esconder de vez - misturando duas semânticas diferentes que o jogo já distingue: "escondido" vs "trancado").
+
+**Verificação:** Playwright - tentativa de interagir com a porta sem o puzzle resolvido confirma que `currentRegionId` permanece `region-5` (a transição não acontece); com o puzzle resolvido, a mesma interação leva a `region-6` corretamente. Typecheck, oxlint e os 129 testes automatizados (128 + 1 novo cobrindo insensibilidade a `dt` acumulado) sem alteração no restante.
+
+### Segunda rodada: o raio ainda "acendia", mas não parecia luz de verdade
+
+Depois da correção de `stepRevealRadius` acima, o desenvolvedor mandou um screenshot de dentro de The Buried Chord com o scanner ligado: dava pra notar um círculo levemente mais claro ao redor do robô, mas sutil demais pra realmente ler como "uma luz acendeu".
+
+**Causa raiz:** `renderDarkness` só usava `destination-out` pra recortar um buraco na camada escura, revelando o chão por baixo - mas o chão de `region-6` (`REGION_GROUND_PALETTES['region-6']`) já é escuro por natureza, na mesma família tonal das outras regiões, só mais sóbria. Resultado: a área "revelada" ficava perto demais, em brilho, da área "escura" - a diferença existia (os testes E2E já confirmavam o raio crescendo de verdade), mas não era grande o suficiente pra *parecer* que uma luz tinha sido ligada.
+
+**Decisão:** `renderDarkness` ganhou uma segunda camada - depois de recortar o buraco (`destination-out`), um gradiente radial na mesma cor ciano da lente/antena do robô (`PLAYER_LENS_GLOW`, reaproveitada como `DARKNESS_GLOW_COLOR`) é desenhado por cima com `globalCompositeOperation = 'lighter'` (aditivo) - um brilho de verdade, não só "menos escuro". `DARKNESS_OVERLAY_COLOR` também ficou mais opaca (`0.95` → `0.98`) pra aumentar o contraste entre escuro e iluminado.
+
+**Motivo:** a lição aqui não é sobre a lógica do raio (essa já estava correta e testada) - é sobre a técnica de renderização assumir implicitamente que "revelar o chão de baixo" seria suficiente pra comunicar "iluminado", o que só é verdade se o chão revelado for consideravelmente mais claro que a camada escura. Como a paleta desta região específica não é, a camada aditiva resolve isso sem depender de nenhuma característica da paleta - funciona igual não importa quão escuro o chão por baixo seja.
+
+**Verificação:** Playwright num viewport bem maior (1920×868, mais perto do usado pelo desenvolvedor) confirmando visualmente o brilho pequeno no raio ambiente e um brilho bem maior e mais forte no raio ativo - a diferença agora inequívoca. `docs/screenshots/buried-chord.png` reprocessado no README. Typecheck, oxlint e os 129 testes sem alteração (mudança 100% de renderização, a lógica de `stepRevealRadius` não mudou).
+
+### Terceira rodada: o brilho aparecia, mas o robô e o mundo, não
+
+O desenvolvedor mandou dois screenshots novos: o círculo de luz mudava de tamanho (a lógica do raio funcionava), mas dentro dele só havia um borrão colorido - nem o robô, nem o chão, nada do mundo aparecia.
+
+**Causa raiz (mais fundamental que as duas anteriores):** canvas 2D é um único raster, sem camadas - `destination-out` não "revela o que já estava desenhado ali embaixo", ele só reduz o alpha do que está atualmente no buffer. `renderDarkness` desenhava o `fillRect` escuro (quase opaco) **direto no canvas principal**, por cima do robô e do mundo já renderizados com blend normal - nesse momento, a informação de cor original (robô, chão) já tinha sido misturada e efetivamente perdida naquele pixel. Recortar um "buraco" ali depois com `destination-out` não recupera o robô: só deixa aquele pixel transparente, mostrando o que está *atrás do próprio elemento `<canvas>`* no DOM (o fundo escuro da página) - daí o borrão sem robô nenhum.
+
+**Decisão:** a máscara de escuridão passou a ser composta num **canvas auxiliar separado** (`darknessMaskCanvasRef`, criado uma vez e redimensionado sob demanda, mesmo padrão de cache já usado para a textura de chão em `groundTexturesRef`) - preenchido do zero a cada frame (`clearRect` + `fillRect` escuro + `destination-out` do buraco). Esse canvas auxiliar nunca teve o robô nem o mundo desenhados nele, então o buraco recortado ali é *genuinamente* transparente. Só depois disso pronto, `ctx.drawImage(maskCanvas, 0, 0)` compõe a máscara (com o buraco de verdade) sobre o canvas principal com blend normal - é essa composição, e não o recorte em si, que finalmente revela o robô/mundo por baixo.
+
+**Motivo:** esta é a técnica correta e padrão de "fog of war" em qualquer engine baseada em canvas/raster - a máscara precisa existir num buffer que nunca teve o conteúdo a esconder desenhado nela, porque `destination-out` opera sobre o que já está no buffer, não sobre uma "camada" separada conceitual. As duas correções anteriores (lógica do raio; depois o glow aditivo) estavam corretas e continuam de pé - o raio calculava certo, e o glow continua necessário (a paleta desta região é escura por natureza) - mas nenhuma delas resolvia essa causa mais funda, porque o sintoma ("parece que não acende") era o mesmo nas três vezes por motivos diferentes.
+
+**Verificação:** Playwright no mesmo viewport largo (1920×868) - o robô, o chão, as paredes e até a porta oculta agora aparecem claramente dentro do círculo revelado, tanto no raio ambiente (pequeno) quanto no ativo (grande). `docs/screenshots/buried-chord.png` reprocessado de novo. Typecheck, oxlint e os 129 testes sem alteração.
+
+**Lição geral desta sequência de três correções:** um bug de "não parece funcionar" pode ter mais de uma causa raiz empilhada - corrigir a primeira causa encontrada (a lógica do raio) foi necessário mas não suficiente; só depois de corrigir a segunda (contraste insuficiente) e a terceira (a técnica de composição em si) o efeito funcionou de ponta a ponta. Testar visualmente a cada correção (não só confiar na lógica unitária) foi o que expôs cada camada seguinte.
+
+## Lacuna encontrada pelo desenvolvedor: o epílogo não tinha fechamento
+
+Depois de resolver as 5 torres e coletar os dois fragmentos de The Buried Chord, o desenvolvedor voltou a Thousand Spires e não encontrou "nada novo" - uma pergunta legítima de design, não um bug: o v3.0 realmente nunca implementou nenhum sinal de conclusão para esse conteúdo. Dado que o objetivo declarado desta fase inteira era ter algo redondo pra mostrar, um final manco (ou inexistente) contradizia esse objetivo.
+
+**Decisão:** novo estado `hasCompletedEpilogue` (gameStore, persistido no save - mesmo padrão de `hasReachedEnding`, mas **independente** dele: o final original do MVP não muda em nada). Vira `true` quando o segundo dos dois fragmentos de The Buried Chord é coletado (`BURIED_CHORD_FRAGMENT_IDS`, `content/fragments.ts` - checado a cada coleta de fragmento em `GameCanvas.tsx`, não importa em qual ordem os dois são pegos). Uma tela nova, `EpilogueCompleteScreen`, aparece nesse momento - reaproveita literalmente o `EndingScreen.module.css` (mesmo arquivo, não uma cópia) para a mesma linguagem visual de "mensagem de terminal em tela cheia", com texto e botão próprios (só "Voltar ao Menu" - diferente da `EndingScreen` original, não há mais nenhum "continuar explorando" depois disso, porque não existe mais conteúdo à frente hoje).
+
+**Por que não reaproveitar `triggersEnding`/`EndingScreen` diretamente:** são conceitualmente o mesmo tipo de evento ("chegou a um fim"), mas `hasReachedEnding` já tem semântica própria e testada (gatilho para o final do MVP, ponto de entrada pro epílogo via `useShouldShowEndingScreen`) - misturar os dois exigiria distinguir "qual final é esse" em todo lugar que já lê `hasReachedEnding` hoje. Um estado novo e independente é mais simples de raciocinar sobre e não arrisca nada do que já funciona.
+
+**Motivo do gatilho ser "coletar o fragmento" (não um objeto novo tipo `signal-core`):** os dois fragmentos já são exatamente "as duas últimas coisas que existem para descobrir" em The Buried Chord hoje - criar um terceiro objeto só para servir de gatilho de encerramento adicionaria uma peça de conteúdo sem função narrativa própria, só para replicar o padrão do final original onde não é preciso.
+
+**Verificação:** Playwright - coleta do primeiro fragmento não dispara nada (jogo continua normalmente); coleta do segundo (independente de qual dos dois é o "segundo") mostra `EpilogueCompleteScreen` imediatamente, com `hasCompletedEpilogue: true` persistido no save; um reload seguido de "Continue" volta direto pra essa tela (mesmo padrão de `showEndingScreen` já usado no final original). Zero erros de console. Typecheck, oxlint e os 129 testes sem alteração.
+
+## Pedido do desenvolvedor: sala maior com desafio final, e tela de conclusão mais bonita
+
+Depois de jogar até o fim, dois pedidos concretos antes do commit: (1) The Buried Chord parecia pequena, poderia ter um desafio final de verdade; (2) a tela de conclusão do epílogo poderia mostrar o ECHO-7 e ter um tom de despedida.
+
+### `EchoPortrait` extraído para componente próprio
+
+**Contexto:** o retrato vetorial do robô (SVG + glow + flutuação animados) existia só dentro de `MainMenu.tsx`. A tela de conclusão do epílogo agora precisava do mesmo retrato.
+
+**Decisão:** extraído para `components/EchoPortrait/EchoPortrait.tsx` (+ `.module.css` próprio, com o CSS e as `@keyframes` que antes viviam em `MainMenu.module.css`) - `MainMenu.tsx` e `EpilogueCompleteScreen.tsx` importam o mesmo componente, sem duplicar SVG nem CSS.
+
+**Motivo:** segundo uso apareceu, então virou candidato natural a extração - mesmo raciocínio já aplicado antes neste projeto (`content/itemColors.ts`, `resolveRobotPalette`) de nunca duplicar a mesma peça de UI/lógica em dois arquivos.
+
+### The Buried Chord: labirinto maior com puzzle próprio (o "desafio final")
+
+**Contexto:** a versão anterior era uma sala 10×8 com uma única divisória e uma única passagem (hazard) - pequena, e sem nenhum puzzle próprio (os 2 fragmentos eram liberados só por `THOUSAND_SPIRES_PUZZLE` já ter sido resolvido pra entrar ali, o que na prática significava "chegar lá já libera tudo").
+
+**Decisão:** sala redimensionada para 16×10, com **duas** divisórias (colunas 5 e 10), cada uma com sua única passagem (hazard) em **linhas diferentes** (4 e 6) - o caminho ziguezagueia, não é uma linha reta. A câmara final (depois da segunda passagem) ganhou `BURIED_CHORD_PUZZLE` (`content/puzzles.ts`) - mesmo tipo `sequence` de sempre, 4 nós - e os 2 fragmentos passaram a exigir **esse** puzzle resolvido (não mais o de Thousand Spires, redundante depois de já ter sido necessário só pra entrar).
+
+**Por que um puzzle novo em vez de só aumentar a sala:** o pedido explícito foi por uma "surpresa" e um "desafio final", não só mais espaço vazio para andar. Reaproveitar o tipo `sequence` (nenhuma mecânica nova) mantém a decisão consistente com o resto do projeto (`docs/DECISIONS.md` já registra essa preferência por reuso várias vezes) - a dificuldade nova vem inteira do cenário (os 4 nós só são visíveis de perto ou durante um pulso do scanner, na escuridão quase total desta região), não de código novo de puzzle.
+
+**"Surpresa" reaproveitando o próprio sistema de escuridão:** ao resolver `BURIED_CHORD_PUZZLE`, `darknessRevealRadiusRef.current` é atribuído direto a `REWARD_FLASH_RADIUS` (420, bem acima do raio ativo normal de 150) - um flash de luz na sala inteira como recompensa. Nenhum temporizador novo: o próprio `stepRevealRadius`, chamado todo frame de qualquer forma, já suaviza esse valor de volta ao alvo normal sozinho - o "flash que apaga sozinho" é uma propriedade emergente da função existente, não código adicional de animação.
+
+**Verificação:** Playwright - a primeira tentativa de automatizar a travessia revelou um erro no *script de teste* (não no jogo): o corredor de cada passagem tem só 1 tile de largura, então tentar mudar de linha *dentro* dele esbarra na parede vizinha - precisa sair pra zona aberta antes de virar. Corrigido o roteiro do teste, a travessia das duas passagens (com Magnetic Boots) e a resolução do puzzle na ordem certa (`node-1` a `node-4`) gravam `buried-chord-puzzle` em `solvedPuzzles` corretamente, liberando os 2 fragmentos finais. Typecheck, oxlint e os 129 testes automatizados sem alteração (mudança de conteúdo/layout, nenhuma mudança de sistema testado por eles).
+
+### Tela de conclusão: retrato do robô + tom de despedida
+
+**Decisão:** `EpilogueCompleteScreen` ganhou o `EchoPortrait` no topo (mesmo componente do menu, com a cor do robô escolhida em Settings) e uma nova linha de fechamento antes do botão - `t.epilogueEnding.farewell` ("ECHO-7 marks the coordinate, and keeps listening.") seguida de `t.epilogueEnding.seeYouOutThere` ("See you out there." / "Até breve, explorador.") no lugar do antigo "END OF TRANSMISSION", que soava mais como um log frio de sistema do que uma despedida.
+
+**Motivo:** pedido explícito do desenvolvedor por um tom mais caloroso - a mudança de texto (não de estrutura) foi suficiente pra atender o pedido sem alterar o resto da tela (mesmas 4 linhas narrativas anteriores, mesmo botão único de "voltar ao menu").
+
+**Screenshots novos:** `docs/screenshots/epilogue-complete.png` adicionado ao README, mostrando a tela nova.
