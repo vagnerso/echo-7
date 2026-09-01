@@ -10,6 +10,8 @@ Roda direto no navegador, sem instalação. Suporta teclado e telas de toque (ce
 
 **Controles:** `WASD`/setas para mover · `E` interagir · `Q` scanner · `I` inventário/upgrades/fragmentos. Também exibidos na tela durante o jogo (e como D-pad/botões em dispositivos touch).
 
+![Gameplay do ECHO-7](docs/screenshots/gameplay-demo.gif)
+
 ## 📸 Screenshots
 
 | Menu | Exploração |
